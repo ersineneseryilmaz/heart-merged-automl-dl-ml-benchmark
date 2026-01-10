@@ -20,4 +20,24 @@ For each run, we report:
 - **Resources**: wall-clock runtime, process RSS (MB), system RAM delta (GB), serialized model size (MB)
 
 ## Project structure (recommended)
+.
+├─ src/
+│ ├─ preprocess.py
+│ ├─ figures_raw.py
+│ ├─ figures_clean.py
+│ ├─ workflow_fig.py
+│ ├─ classic_ml.py
+│ ├─ dl_models.py
+│ ├─ automl_mljar.py
+│ ├─ automl_autogluon.py
+│ ├─ automl_h2o.py
+│ └─ automl_flaml.py
+├─ scripts/
+│ ├─ run_preprocess.sh
+│ ├─ run_figures.sh
+│ ├─ run_classic_ml.sh
+│ ├─ run_dl.sh
+│ └─ run_automl.sh
+├─ requirements.txt
+└─ README.md
 
