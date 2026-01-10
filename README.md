@@ -20,7 +20,7 @@ For each run, we report:
 - **Resources**: wall-clock runtime, process RSS (MB), system RAM delta (GB), serialized model size (MB)
 
 ## Project structure (recommended)
-.
+#.
 ├─ src/
 │ ├─ preprocess.py
 │ ├─ figures_raw.py
@@ -40,4 +40,4 @@ For each run, we report:
 │ └─ run_automl.sh
 ├─ requirements.txt
 └─ README.md
-
+#
