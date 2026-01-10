@@ -39,3 +39,43 @@ For each run, we report:
 │ └─ run_automl.sh
 ├─ requirements.txt
 └─ README.md
+
+> We will create these files incrementally from your Colab notebook code.
+
+## Environment
+- OS / CPU / RAM: see paper’s **Table 1**
+- Key libraries (from your environment):
+  - numpy==2.0.2, pandas==2.2.2, scikit-learn==1.6.1, lightgbm==4.6.0, xgboost==3.1.2
+
+## Quickstart
+1) Install dependencies:
+```bash
+pip install -r requirements.txt
+
+2) Preprocess (creates heart_merged_clean.csv):
+python -m src.preprocess \
+  --input cleveland_hungarian_long-beach-va_switzerland.csv \
+  --output heart_merged_clean.csv
+
+3) Generate figures (900x900 px):  
+python -m src.figures_raw  --input cleveland_hungarian_long-beach-va_switzerland.csv --out figures_raw_900
+python -m src.figures_clean --input heart_merged_clean.csv --out figures_900
+python -m src.workflow_fig  --out figures_900
+
+4) Run benchmarks:
+python -m src.classic_ml --data heart_merged_clean.csv --full_budget 180 --light_budget 60
+python -m src.dl_models  --data heart_merged_clean.csv --full_budget 180 --light_budget 60
+# AutoML:
+python -m src.automl_flaml --data heart_merged_clean.csv --mode full  --budget 180 --cv 1
+python -m src.automl_flaml --data heart_merged_clean.csv --mode light --budget 60  --cv 0
+
+Notes on reproducibility
+
+Fixed random seed (seed=42) is used consistently across splits and model training.
+
+Outer train/test split is stratified; an inner validation split is used for selection/early stopping without touching the test set.
+
+Full vs Lightweight are defined by explicit budgets and constrained search/model pools (see paper’s Table 2).
+
+License
+MIT License
