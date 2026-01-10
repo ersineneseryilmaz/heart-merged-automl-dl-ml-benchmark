@@ -133,6 +133,5 @@ def main():
     args = ap.parse_args()
     make_figures_raw_900(args.input, args.target, args.out)
 
-
 if __name__ == "__main__":
     main()
