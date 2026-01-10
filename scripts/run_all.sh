@@ -38,3 +38,10 @@ python -m src.automl_h2o --data "$CLEAN" --mode light --budget 60  --out outputs
 python -m src.automl_h2o --data "$CLEAN" --mode full  --budget 180 --out outputs/h2o
 
 echo "[OK] All done."
+
+chmod +x scripts/run_all.sh
+
+git add .gitignore README.md requirements.txt src scripts
+git commit -m "Add full benchmark: Classic ML, DL, AutoML (FLAML/MLJAR/AutoGluon/H2O) with Light vs Full budgets"
+git push
+
