@@ -32,11 +32,7 @@ For each run, we report:
 │ ├─ automl_h2o.py
 │ └─ automl_flaml.py
 ├─ scripts/
-│ ├─ run_preprocess.sh
-│ ├─ run_figures.sh
-│ ├─ run_classic_ml.sh
-│ ├─ run_dl.sh
-│ └─ run_automl.sh
+│ ├─ run_all.sh
 ├─ requirements.txt
 └─ README.md
 
