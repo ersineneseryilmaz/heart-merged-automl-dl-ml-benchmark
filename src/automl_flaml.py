@@ -45,8 +45,8 @@ def run_flaml(data_path: str, mode: str, budget_s: int, seed: int, out_dir: str)
             "metric": "f1",
             "seed": seed,
             "log_file_name": os.path.join(out_dir, "flaml_full.log"),
-            # ✅ FULL: CV
-            "eval_method": "cv",
+            # ✅ FULL: holdout
+            "eval_method": "holdout",
             "n_splits": 5,
             "n_jobs": -1,
         }
