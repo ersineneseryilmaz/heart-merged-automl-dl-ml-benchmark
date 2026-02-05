@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """MLJar-AutoGluon-H2O-FLAML-ML-DL_Heart_merged_dataset.ipynb
-Coded and edited by Ersin Enes Eryılmaz.
 Original file is located at
     https://colab.research.google.com/drive/19cZc2jJdWZWIqZNwuvS9wmNu4AGT6WZo
 """
 
 pip freeze > requirements.txt
 
-"""**0-ÖNİŞLEME:** Boşlukları medyan mod doldur, gerekli önişleme işlemleri yap"""
+"""**0) PREPROCESSING**:
+- Convert placeholders like '?' to NaN
+- Cast all columns to numeric
+- Binarize target: 0 -> 0, 1-4 -> 1
+- Impute missing feature values with column-wise median
+"""
 
 import pandas as pd
 import numpy as np
@@ -21,53 +25,58 @@ def preprocess_heart_csv(input_csv_path: str, output_csv_path: str = "heart_clea
         engine="python"
     )
 
-    # 2) Kolon adlarını temizle (baş/son boşlukları sil)
+    # 2) Clean column names (strip leading/trailing spaces)
     df.columns = [c.strip() for c in df.columns]
 
-    # 3) Beklenen kolonları kontrol et (opsiyonel ama önerilir)
+    # 3) Validate expected columns (optional but recommended)
     expected = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal","target"]
     missing_cols = [c for c in expected if c not in df.columns]
     if missing_cols:
-        raise ValueError(f"CSV'de beklenen kolon(lar) yok: {missing_cols}\nMevcut kolonlar: {list(df.columns)}")
+        raise ValueError(f"Missing expected column(s) in CSV: {missing_cols}\nAvailable columns: {list(df.columns)}")
 
-    # 4) Tüm sütunları sayısala çevir (sayısal olmayanlar NaN olur)
+
+    # 4) Convert all expected columns to numeric (non-numeric -> NaN)
     for c in expected:
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # 5) target'ı binary yap: 0 -> 0, 1-4 -> 1
-    # target eksik olan satırları at (istersen median ile doldurmak yerine)
+    # 5) Binarize target: 0 -> 0, 1-4 -> 1
+    # Drop rows with missing target (instead of imputing target)
     df = df[df["target"].notna()].copy()
     df["target"] = (df["target"] > 0).astype(int)
 
-    # 6) Feature eksiklerini kolon medyanı ile doldur
+    # 6) Impute missing feature values with column median
     feature_cols = [c for c in expected if c != "target"]
     medians = df[feature_cols].median(numeric_only=True)
     df[feature_cols] = df[feature_cols].fillna(medians)
 
-    # (Opsiyonel) Hâlâ NaN kaldıysa (tamamen boş kolon gibi), uyarı ver
+    # (Optional) Warn if NaNs remain (e.g., entirely empty column)
     remaining_nan = df[feature_cols].isna().sum().sum()
     if remaining_nan > 0:
-        print(f"Uyarı: Doldurma sonrası hâlâ {remaining_nan} adet NaN kaldı (tamamen boş kolon olabilir).")
+        print(f"Warning: {remaining_nan} NaN values remain after imputation (possibly an entirely empty column).")
 
-    # 7) Kaydet
+    # 7) Save cleaned dataset
     df.to_csv(output_csv_path, index=False)
-    print(f"Kaydedildi: {output_csv_path} | Shape: {df.shape}")
+    print(f"Saved: {output_csv_path} | Shape: {df.shape}")
 
     return df
 
+# Usage:
+df_clean = preprocess_heart_csv(
+    "cleveland_hungarian_long-beach-va_switzerland.csv",
+    "heart_merged_clean.csv"
+)
 
-# Kullanım:
-df_clean = preprocess_heart_csv("cleveland_hungarian_long-beach-va_switzerland.csv", "heart_merged_clean.csv")
+"""**Dataset characteristics before preprocessing**
 
-"""**Önişleme yapılmadan önce veri kümesinin özellikleri**"""
+"""
 
 # ============================================================
-# Preprocess ÖNCESİ (ham CSV) için 900x900 görseller
-# - Dosya: cleveland_hungarian_long-beach-va_switzerland.csv
-# - '?' vb. değerleri NaN'a çevirir, kolon adlarını strip eder
-# - DÖNÜŞÜM / DOLDURMA YOK (median fill yok)
-# - 900x900 px (dpi=150 -> 6x6 inch)
-# - Çıktılar ./figures_raw_900/ altına kaydedilir (PNG)
+# 900x900 figures for the PRE-PROCESSING stage (raw CSV)
+# - File: cleveland_hungarian_long-beach-va_switzerland.csv
+# - Converts values like '?' to NaN and strips column names
+# - NO TRANSFORMATION / NO IMPUTATION (no median fill)
+# - 900x900 px (dpi=150 -> 6x6 inches)
+# - Outputs are saved under ./figures_raw_900/ (PNG)
 # ============================================================
 
 import os
@@ -77,7 +86,7 @@ import matplotlib.pyplot as plt
 
 
 def load_raw_heart_csv(raw_csv_path: str) -> pd.DataFrame:
-    """Ham dosyayı, preprocessing yapmadan (sadece NaN okuma + kolon trim) yükler."""
+    """Loads the raw file without preprocessing (only NaN parsing + column trimming)."""
     df = pd.read_csv(
         raw_csv_path,
         na_values=["?", "??", "???", "????", " ?"],
@@ -89,7 +98,7 @@ def load_raw_heart_csv(raw_csv_path: str) -> pd.DataFrame:
 
 
 def _save_900(fig, out_path: str, dpi: int = 150):
-    # 900px = 6 inch * 150 dpi
+    # 900px = 6 inches * 150 dpi
     fig.set_size_inches(6, 6, forward=True)
     fig.tight_layout()
     fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
@@ -104,13 +113,13 @@ def make_peerj_figures_raw_900(
     os.makedirs(out_dir, exist_ok=True)
     df_raw = load_raw_heart_csv(raw_csv_path)
 
-    # Beklenen kolonlar (varsa bunlarla çalış; yoksa mevcut kolonlarla devam)
+    # Expected columns (use these if present; otherwise continue with existing columns)
     expected = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal","target"]
     cols = [c for c in expected if c in df_raw.columns]
     if not cols:
         cols = list(df_raw.columns)
 
-    # Sayısal görseller için (ham veri -> sadece numeric'e çevir; DOLDURMA YOK)
+    # For numeric plots (raw data -> cast to numeric only; NO IMPUTATION)
     df_num = df_raw.copy()
     for c in cols:
         df_num[c] = pd.to_numeric(df_num[c], errors="coerce")
@@ -118,7 +127,7 @@ def make_peerj_figures_raw_900(
     feature_cols = [c for c in cols if c != target_col and c in df_num.columns]
 
     # ========================================================
-    # FIG-R1: Kolonların eksik değer sayısı (ham veri)
+    # FIG-R1: Missing value counts per column (raw data)
     # ========================================================
     fig, ax = plt.subplots()
     nan_counts = df_num[cols].isna().sum().sort_values(ascending=False)
@@ -130,8 +139,8 @@ def make_peerj_figures_raw_900(
     _save_900(fig, os.path.join(out_dir, "FigR1_raw_missing_values_900.png"))
 
     # ========================================================
-    # FIG-R2: Data type özeti (sayısal/nesne) + non-null sayıları
-    # (Ham veri karakter içerdiği için rapor figürü gibi düşün)
+    # FIG-R2: Data type summary (numeric/object) + non-null counts
+    # (Treat this as a reporting figure since raw data may contain strings)
     # ========================================================
     fig, ax = plt.subplots()
     non_null = df_raw[cols].notna().sum().sort_values(ascending=False)
@@ -143,13 +152,13 @@ def make_peerj_figures_raw_900(
     _save_900(fig, os.path.join(out_dir, "FigR2_raw_nonnull_counts_900.png"))
 
     # ========================================================
-    # FIG-R3: Target ham dağılımı (numeric'e çevrilmiş haliyle)
-    # Not: ham target 0-4 olabilir; NaN olanlar ayrı kalır
+    # FIG-R3: Raw target distribution (after numeric casting)
+    # Note: raw target can be 0-4; NaNs remain as a separate group
     # ========================================================
     if target_col in df_num.columns:
         fig, ax = plt.subplots()
         t = df_num[target_col]
-        # NaN'ları ayrı gösterelim
+        # Show NaNs separately
         counts = t.value_counts(dropna=False).sort_index()
         labels = []
         values = []
@@ -157,7 +166,7 @@ def make_peerj_figures_raw_900(
             if pd.isna(idx):
                 labels.append("NaN")
             else:
-                # tam sayıysa daha temiz yaz
+                # If it's an integer, print it more cleanly
                 labels.append(str(int(idx)) if float(idx).is_integer() else str(idx))
             values.append(int(v))
 
@@ -170,14 +179,14 @@ def make_peerj_figures_raw_900(
         _save_900(fig, os.path.join(out_dir, "FigR3_raw_target_distribution_900.png"))
 
     # ========================================================
-    # FIG-R4: Feature completeness heatmap (satır bazlı doluluk)
-    # - Seaborn yok; matplotlib imshow
-    # - İlk 200 satırı göster (çok satır varsa görsel şişmesin)
+    # FIG-R4: Feature completeness heatmap (row-wise completeness)
+    # - No seaborn; uses matplotlib imshow
+    # - Show only the first 200 rows (to avoid oversized figures)
     # ========================================================
     max_rows = 200
-    show_cols = feature_cols[:13]  # 13 özellik tipik; daha fazlaysa ilk 13
+    show_cols = feature_cols[:13]  # 13 features is typical; if more, use the first 13
     if show_cols:
-        mat = df_num[show_cols].notna().astype(int).head(max_rows).values  # 1=var, 0=eksik
+        mat = df_num[show_cols].notna().astype(int).head(max_rows).values  # 1=present, 0=missing
         fig, ax = plt.subplots()
         im = ax.imshow(mat, aspect="auto")
         ax.set_title(f"Raw Data: Feature Completeness (first {min(len(df_num), max_rows)} rows)")
@@ -189,11 +198,11 @@ def make_peerj_figures_raw_900(
         _save_900(fig, os.path.join(out_dir, "FigR4_raw_completeness_heatmap_900.png"))
 
     # ========================================================
-    # FIG-R5: Ham sayısal dağılım (boxplot) - NaN'lar otomatik elenir
-    # - Çok NaN varsa yine de fikir verir
+    # FIG-R5: Raw numeric distributions (boxplot) - NaNs are dropped automatically
+    # - Still provides intuition even if many NaNs exist
     # ========================================================
     if feature_cols:
-        # çok fazla feature olursa boxplot kalabalıklaşır: ilk 13 ile sınırla
+        # If there are too many features, boxplot becomes cluttered: limit to the first 13
         fcols = feature_cols[:13]
         plot_data = [df_num[c].dropna().values for c in fcols]
 
@@ -207,8 +216,8 @@ def make_peerj_figures_raw_900(
         _save_900(fig, os.path.join(out_dir, "FigR5_raw_boxplot_900.png"))
 
     # ========================================================
-    # FIG-R6: Korelasyon (ham numeric) - NaN içeren satırlar düşer
-    # - Pairwise correlation için pandas corr zaten NaN'i pairwise ele alır
+    # FIG-R6: Correlation (raw numeric)
+    # - pandas corr computes pairwise correlations and handles NaNs pairwise
     # ========================================================
     if feature_cols and target_col in df_num.columns:
         corr = df_num[feature_cols + [target_col]].corr(numeric_only=True)
@@ -224,27 +233,27 @@ def make_peerj_figures_raw_900(
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         _save_900(fig, os.path.join(out_dir, "FigR6_raw_correlation_matrix_900.png"))
 
-    print(f"\nBitti. Ham veri için 900x900 görselleri kaydedildi: ./{out_dir}/")
-    print("Üretilen dosyalar:")
+    print(f"\nDone. Raw 900x900 figures saved to: ./{out_dir}/")
+    print("Generated files:")
     for fn in sorted(os.listdir(out_dir)):
         if fn.lower().endswith(".png"):
             print(" -", fn)
 
 
-# ----------------- Çalıştırma -----------------
+# ----------------- Run -----------------
 make_peerj_figures_raw_900(
     raw_csv_path="cleveland_hungarian_long-beach-va_switzerland.csv",
     target_col="target",
     out_dir="figures_raw_900"
 )
 
-"""**Önişlenmiş veri kümesinin özellikleri**"""
+"""**Characteristics of the preprocessed dataset**"""
 
 # ============================================================
-# 900x900 görseller (dataset özelliklerine göre)
-# - 900x900 px (dpi=150 -> 6x6 inch)
-# - Matplotlib ( default)
-# - Çıktılar ./figures_900/ altına kaydedilir (PNG)
+# 900x900 figures (based on dataset characteristics)
+# - 900x900 px (dpi=150 -> 6x6 inches)
+# - Matplotlib (default)
+# - Outputs saved under ./figures_900/ (PNG)
 # ============================================================
 
 import os
@@ -252,9 +261,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ---------- 900x900 fig kaydedici ----------
+# ---------- 900x900 figure saver ----------
 def _save_900(fig, out_path: str, dpi: int = 150):
-    # 900px = 6 inch * 150 dpi
+    # 900px = 6 inches * 150 dpi
     fig.set_size_inches(6, 6, forward=True)
     fig.tight_layout()
     fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
@@ -269,13 +278,13 @@ def make_peerj_figures_900(
     os.makedirs(out_dir, exist_ok=True)
     df = pd.read_csv(clean_csv_path)
 
-    # güvenlik: target int olsun
+    # safety: ensure target column is integer
     df[target_col] = df[target_col].astype(int)
 
     feature_cols = [c for c in df.columns if c != target_col]
 
     # ========================================================
-    # FIG-1: Target dağılımı (Class balance)
+    # FIG-1: Target distribution (class balance)
     # ========================================================
     fig, ax = plt.subplots()
     counts = df[target_col].value_counts().sort_index()
@@ -288,8 +297,9 @@ def make_peerj_figures_900(
     _save_900(fig, os.path.join(out_dir, "Fig1_target_distribution_900.png"))
 
     # ========================================================
-    # FIG-2: Özelliklerin eksik değer sayısı (preprocess öncesi için faydalı)
-    # Not: clean_csv zaten doldurulmuş olabilir; yine de rapor olur.
+    # FIG-2: Missing value counts per feature
+    # (useful for comparison with preprocessed data)
+    # Note: clean_csv may already be imputed, but still informative
     # ========================================================
     fig, ax = plt.subplots()
     nan_counts = df[feature_cols].isna().sum().sort_values(ascending=False)
@@ -301,18 +311,20 @@ def make_peerj_figures_900(
     _save_900(fig, os.path.join(out_dir, "Fig2_missing_values_900.png"))
 
     # ========================================================
-    # FIG-3: Özelliklerin dağılımı (Boxplot; target'a göre)
+    # FIG-3: Feature distributions (boxplot by target class)
     # ========================================================
     fig, ax = plt.subplots()
-    # target 0 ve 1 için ayrı kutu grafiği: her feature için iki kutu
+
+    # separate boxplots for target=0 and target=1
     data0 = df[df[target_col] == 0][feature_cols]
     data1 = df[df[target_col] == 1][feature_cols]
 
-    # boxplot için uygun format: [feat0_class0, feat0_class1, feat1_class0, feat1_class1, ...]
+    # boxplot layout: [feat0_class0, feat0_class1, feat1_class0, feat1_class1, ...]
     plot_data = []
     positions = []
     labels = []
     pos = 1
+
     for f in feature_cols:
         plot_data.append(data0[f].values)
         plot_data.append(data1[f].values)
@@ -327,14 +339,20 @@ def make_peerj_figures_900(
     ax.set_xticks([i + 0.175 for i in range(1, len(feature_cols) + 1)])
     ax.set_xticklabels([str(f) for f in feature_cols], rotation=90)
 
-    # küçük bir açıklama
-    ax.text(0.02, 0.98, "Each feature has two boxes: target=0 (left), target=1 (right)",
-            transform=ax.transAxes, ha="left", va="top")
+    # explanatory note
+    ax.text(
+        0.02, 0.98,
+        "Each feature has two boxes: target=0 (left), target=1 (right)",
+        transform=ax.transAxes,
+        ha="left",
+        va="top"
+    )
+
     _save_900(fig, os.path.join(out_dir, "Fig3_boxplot_by_target_900.png"))
 
     # ========================================================
-    # FIG-4: Korelasyon Isı Haritası (Pearson)
-    # - Seaborn kullanmadan matplotlib imshow
+    # FIG-4: Correlation heatmap (Pearson)
+    # - Uses matplotlib imshow (no seaborn)
     # ========================================================
     corr = df[feature_cols + [target_col]].corr(numeric_only=True)
 
@@ -350,7 +368,7 @@ def make_peerj_figures_900(
     # colorbar
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
-    # değerleri yazdırmak istersen (kalabalık olabilir):
+    # optionally annotate correlation values (can be cluttered)
     # for i in range(corr.shape[0]):
     #     for j in range(corr.shape[1]):
     #         ax.text(j, i, f"{corr.values[i,j]:.2f}", ha="center", va="center", fontsize=6)
@@ -358,37 +376,43 @@ def make_peerj_figures_900(
     _save_900(fig, os.path.join(out_dir, "Fig4_correlation_matrix_900.png"))
 
     # ========================================================
-    # FIG-5: İki güçlü klinik özellik: age vs thalach (scatter), target'a göre
-    # - Bu ikisi genelde iyi anlatıyor; istersen değiştir.
+    # FIG-5: Two clinically informative features: age vs thalach
+    # - Often illustrative; can be replaced if desired
     # ========================================================
     x_col, y_col = "age", "thalach"
+
     if x_col in df.columns and y_col in df.columns:
         fig, ax = plt.subplots()
+
         df0 = df[df[target_col] == 0]
         df1 = df[df[target_col] == 1]
+
         ax.scatter(df0[x_col], df0[y_col], label="target=0", alpha=0.8)
         ax.scatter(df1[x_col], df1[y_col], label="target=1", alpha=0.8)
+
         ax.set_title(f"{x_col} vs {y_col} by Target")
         ax.set_xlabel(x_col)
         ax.set_ylabel(y_col)
         ax.legend()
+
         _save_900(fig, os.path.join(out_dir, "Fig5_scatter_age_thalach_900.png"))
 
-    print(f"\nBitti. 900x900 px görselleri kaydedildi: ./{out_dir}/")
-    print("Üretilen dosyalar:")
+    print(f"\nDone. 900x900 figures saved to: ./{out_dir}/")
+    print("Generated files:")
+
     for fn in sorted(os.listdir(out_dir)):
         if fn.lower().endswith(".png"):
             print(" -", fn)
 
 
-# ----------------- Çalıştırma -----------------
-# 1) Preprocess (ham dosyadan temiz CSV üret)
+# ----------------- Run -----------------
+# 1) Preprocess (generate cleaned CSV from raw file)
 df_clean = preprocess_heart_csv(
     "cleveland_hungarian_long-beach-va_switzerland.csv",
     "heart_merged_clean.csv"
 )
 
-# 2) 900x900 görselleri üret
+# 2) Generate 900x900 figures
 make_peerj_figures_900(
     clean_csv_path="heart_merged_clean.csv",
     target_col="target",
@@ -396,6 +420,82 @@ make_peerj_figures_900(
 )
 
 pip freeze | egrep "scikit|xgboost|lightgbm|catboost|mljar|flaml|numpy|pandas"
+
+# ============================================================
+# Figure 3: End-to-end experimental workflow (900x900 px)
+# - PeerJ-friendly: 900x900 (dpi=150 -> 6x6 inch)
+# - Uses matplotlib patches (no seaborn)
+# - Output: ./figures_900/Fig3_workflow_900.png
+# ============================================================
+
+import os
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+
+def _save_900(fig, out_path: str, dpi: int = 150):
+    fig.set_size_inches(6, 6, forward=True)  # 6*150=900 px
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+
+def _box(ax, xy, w, h, text, fontsize=9):
+    x, y = xy
+    patch = FancyBboxPatch(
+        (x, y), w, h,
+        boxstyle="round,pad=0.02,rounding_size=0.02",
+        linewidth=1.2,
+        facecolor="white"
+    )
+    ax.add_patch(patch)
+    ax.text(x + w/2, y + h/2, text, ha="center", va="center", fontsize=fontsize)
+    return patch
+
+def _arrow(ax, p1, p2):
+    ax.add_patch(FancyArrowPatch(
+        p1, p2, arrowstyle="->", mutation_scale=12, linewidth=1.2
+    ))
+
+def make_fig3_workflow(out_dir="figures_900"):
+    os.makedirs(out_dir, exist_ok=True)
+
+    fig, ax = plt.subplots()
+    ax.set_axis_off()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+
+    # Layout (normalized coordinates)
+    W, H = 0.82, 0.10
+    X = 0.09
+
+    b1 = _box(ax, (X, 0.86), W, H, "Raw merged CSV\n(Cleveland + Hungary + Switzerland + VA Long Beach)")
+    b2 = _box(ax, (X, 0.72), W, H, "Unified preprocessing\n(“?”→NaN, numeric casting, target binarization,\nmedian imputation for features)")
+    b3 = _box(ax, (X, 0.58), W, H, "Stratified split\nOuter: Train/Test\nInner: Train/Val (early stopping / selection)")
+    b4 = _box(ax, (X, 0.44), W, H, "Train (two comparable regimes)\nML: Light vs Full\nDL: Light vs Full\nAutoML: Light vs Full")
+    b5 = _box(ax, (X, 0.30), W, H, "Evaluate on held-out test set\nAccuracy, AUC, F1, Precision, Recall, LogLoss,\nConfusion Matrix")
+    b6 = _box(ax, (X, 0.16), W, H, "Resource logging\nRuntime (wall-clock), RAM (process RSS & system delta),\nModel size (serialized file MB)")
+    b7 = _box(ax, (X, 0.02), W, H, "Report results\nTables/Figures + exact configs for reproducibility")
+
+    # Arrows (center-bottom to center-top)
+    def mid_bottom(box):  # (x,y,w,h) from patch
+        x, y = box.get_x(), box.get_y()
+        w, h = box.get_width(), box.get_height()
+        return (x + w/2, y)
+    def mid_top(box):
+        x, y = box.get_x(), box.get_y()
+        w, h = box.get_width(), box.get_height()
+        return (x + w/2, y + h)
+
+    for a, b in [(b1, b2), (b2, b3), (b3, b4), (b4, b5), (b5, b6), (b6, b7)]:
+        _arrow(ax, mid_bottom(a), mid_top(b))
+
+    ax.set_title("Figure 3. End-to-end experimental workflow", fontsize=11)
+
+    out_path = os.path.join(out_dir, "Fig3_workflow_900.png")
+    _save_900(fig, out_path)
+    print("Saved:", out_path)
+
+# Run
+make_fig3_workflow(out_dir="figures_900")
 
 # ============================================================
 # Figure 3: End-to-end experimental workflow (900x900 px)
@@ -484,7 +584,6 @@ make_fig3_workflow(out_dir="figures_900")
 import logging
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
-
 import os
 import time
 import psutil
@@ -499,9 +598,9 @@ from sklearn.metrics import (
 
 # import matplotlib.pyplot as plt
 # plt.rcParams['font.family'] = 'sans-serif']
-import numpy as np # Import numpy for np.unique
+import numpy as np  # Import numpy for np.unique
 
-# === Sistem RAM ölçüm fonksiyonu ===
+# === System RAM measurement function ===
 def get_system_ram():
     mem = psutil.virtual_memory()
     total = mem.total / (1024**3)
@@ -510,24 +609,24 @@ def get_system_ram():
     percent = mem.percent
     return total, used, free, percent
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1. Veri kümesini yükle
+# 1. Load dataset
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 X = data.drop(columns=[target_col])
 y = data[target_col]
 
-# 2. Eğitim/Test bölme
+# 2. Train/Test split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# 3. MLJAR AutoML ayarları (tam/Compete sürüm)
+# 3. MLJAR AutoML configuration (full/Compete mode)
 automl = AutoML(
     mode="Compete",
     algorithms=[
@@ -545,14 +644,14 @@ automl = AutoML(
     random_state=42,
 )
 
-# 4. Model eğitimi
+# 4. Train model
 automl.fit(X_train, y_train)
 
-# 5. Test tahmini
+# 5. Test predictions
 y_pred = automl.predict(X_test)
 y_pred_proba = automl.predict_proba(X_test)[:, 1]
 
-# 6. Performans ölçümleri
+# 6. Performance metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -561,7 +660,7 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -570,14 +669,14 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-# === En iyi model dosya boyutu (joblib üzerinden) ===
-best_model = automl._best_model  # MLJAR içindeki en iyi model nesnesi
+# === Best model file size (via joblib) ===
+best_model = automl._best_model  # Best model object inside MLJAR
 best_model_file = "mljar_heart_full_best_model.pkl"
 joblib.dump(best_model, best_model_file)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# === Sonuçlar ===
-print("\n=== MLJAR Normal (Compete) Model Performansı (Test) ===")
+# === Results ===
+print("\n=== MLJAR Full (Compete) Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -588,21 +687,21 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== En İyi Model Bilgileri ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"Model dosyası: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.2f} MB")
+print("\n=== Best Model Information ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Model file: {best_model_file}")
+print(f"Model size: {model_size_mb:.2f} MB")
 
 # 9. Leaderboard
 leaderboard = automl.get_leaderboard()
@@ -614,12 +713,13 @@ del automl
 gc.collect()
 time.sleep(2)
 end_proc_mem2 = process.memory_info().rss / (1024 * 1024)
-print(f"\n[GC sonrası] Python RSS: {end_proc_mem2:.2f} MB")
+print(f"\n[After GC] Python RSS: {end_proc_mem2:.2f} MB")
 
 """**HAFİF MLJAR**"""
 
 # -*- coding: utf-8 -*-
 """mljar_heart_light.py"""
+
 import logging
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
@@ -635,7 +735,7 @@ from sklearn.metrics import (
     precision_score, recall_score, log_loss, confusion_matrix, classification_report
 )
 
-# === Sistem RAM ölçüm fonksiyonu ===
+# === System RAM measurement function ===
 def get_system_ram():
     mem = psutil.virtual_memory()
     total = mem.total / (1024**3)
@@ -644,26 +744,26 @@ def get_system_ram():
     percent = mem.percent
     return total, used, free, percent
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1. Veri kümesini yükle
+# 1. Load dataset
 data = pd.read_csv("heart_merged_clean.csv")
 y = "target"
 X = data.drop(columns=[y])
 y_data = data[y]
 
-# 2. Eğitim/Test bölme
+# 2. Train/Test split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y_data, test_size=0.2, random_state=42, stratify=y_data
 )
 
-# 3. MLJAR AutoML (hafif) ayarları
+# 3. MLJAR AutoML (lightweight) configuration
 automl = AutoML(
-    mode="Explain",   # hafif ve hızlı
+    mode="Explain",   # lightweight and fast mode
     algorithms=["LightGBM", "Xgboost", "CatBoost", "Random Forest"],
     total_time_limit=60,
     explain_level=1,
@@ -672,14 +772,14 @@ automl = AutoML(
     hill_climbing_steps=0,
 )
 
-# 4. Eğitim
+# 4. Training
 automl.fit(X_train, y_train)
 
-# 5. Tahmin
+# 5. Prediction
 y_pred = automl.predict(X_test)
 y_pred_proba = automl.predict_proba(X_test)[:, 1]
 
-# 6. Performans ölçümleri
+# 6. Performance metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -688,7 +788,7 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -697,14 +797,14 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_ram_diff = end_sys_used - start_sys_used
 
-# === En iyi model dosya boyutu (joblib ile) ===
+# === Best model file size (via joblib) ===
 best_model = automl._best_model
 best_model_file = "mljar_heart_light_best_model.pkl"
 joblib.dump(best_model, best_model_file)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# 7. Sonuçlar
-print("\n=== MLJAR Hafif Model Performansı (Test) ===")
+# 7. Results
+print("\n=== MLJAR Lightweight Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -718,21 +818,21 @@ print(cm)
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python RAM Artışı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python RAM increase: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_ram_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_ram_diff:.2f} GB")
 
-print("\n=== En İyi Model Dosyası ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"Model yolu: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.4f} MB")
+print("\n=== Best Model File ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Model path: {best_model_file}")
+print(f"Model size: {model_size_mb:.4f} MB")
 
 # 8. Leaderboard
 leaderboard = automl.get_leaderboard()
@@ -744,7 +844,7 @@ del automl
 gc.collect()
 time.sleep(2)
 end_proc_mem2 = process.memory_info().rss / (1024 * 1024)
-print(f"\n[GC sonrası] Python RSS: {end_proc_mem2:.2f} MB")
+print(f"\n[After GC] Python RSS: {end_proc_mem2:.2f} MB")
 
 """**FULL AUTOGLUON**"""
 
@@ -796,13 +896,13 @@ def pick_positive_proba(proba_df: pd.DataFrame, y_train: pd.Series) -> np.ndarra
     return proba_df.iloc[:, -1].to_numpy()
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 
@@ -813,11 +913,11 @@ train_df, test_df = train_test_split(
     data, test_size=0.2, random_state=42, stratify=y
 )
 
-# 2) AutoGluon ayarları
-# - time_limit: toplam süre limiti
-# - presets: hızlı eğitim odaklı preset
-# - num_bag_folds=5, num_stack_levels=0: stacking kapalı (hızlı)
-# Kaynak: AutoGluon TabularPredictor.fit parametreleri. :contentReference[oaicite:3]{index=3}
+# 2) AutoGluon settings
+# - time_limit: total time limit
+# - presets: fast training focused preset
+# - num_bag_folds=5, num_stack_levels=0: stacking disabled (fast)
+# Source: AutoGluon TabularPredictor.fit parameters. :contentReference[oaicite:3]{index=3}
 predictor_path = "autogluon_heart_full_predictor"
 
 predictor = TabularPredictor(
@@ -837,12 +937,12 @@ predictor.fit(
     hyperparameters=hyperparameters,
 )
 
-# 3) Tahmin
+#3) Prediction
 y_pred = predictor.predict(test_df)
 proba_df = predictor.predict_proba(test_df)
 y_pred_proba = pick_positive_proba(proba_df, train_df[target_col])
 
-# 4) Metrikler
+# 4) Metrics
 y_test = test_df[target_col].to_numpy()
 y_pred_np = pd.Series(y_pred).astype(int).to_numpy()
 
@@ -854,7 +954,7 @@ recall = recall_score(y_test, y_pred_np)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred_np)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -863,10 +963,10 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-# Predictor boyutu
+# Predictor dimension
 model_size_mb = get_dir_size_mb(predictor_path)
 
-print("\n=== AutoGluon Full Model Performansı (Test) ===")
+print("\n=== AutoGluon Full Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -877,20 +977,21 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== Model Bilgileri ===")
+print("\n=== Model Information ===")
 print(f"Predictor path: {predictor_path}")
-print(f"Predictor boyutu: {model_size_mb:.2f} MB")
+print(f"Predictor size: {model_size_mb:.2f} MB")
+
 
 # Leaderboard
 lb = predictor.leaderboard(test_df, silent=True)
@@ -941,17 +1042,17 @@ def pick_positive_proba(proba_df: pd.DataFrame, y_train: pd.Series) -> np.ndarra
     pos_label = labels[-1]  # usually 1
     if pos_label in proba_df.columns:
         return proba_df[pos_label].to_numpy()
-    # fallback: take last column
+    # fallback: take the last column
     return proba_df.iloc[:, -1].to_numpy()
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 
@@ -962,11 +1063,11 @@ train_df, test_df = train_test_split(
     data, test_size=0.2, random_state=42, stratify=y
 )
 
-# 2) AutoGluon Light ayarları
-# - time_limit: toplam süre limiti
-# - presets: hızlı eğitim odaklı preset
-# - num_bag_folds=0, num_stack_levels=0: bagging/stacking kapalı (hafif)
-# Kaynak: AutoGluon TabularPredictor.fit parametreleri. :contentReference[oaicite:3]{index=3}
+# 2) AutoGluon (Light) configuration
+# - time_limit: total time budget (seconds)
+# - presets: fast-training oriented preset
+# - num_bag_folds=0, num_stack_levels=0: disable bagging/stacking (lightweight)
+# Source: AutoGluon TabularPredictor.fit parameters. :contentReference[oaicite:3]{index=3}
 predictor_path = "autogluon_heart_light_predictor"
 
 predictor = TabularPredictor(
@@ -975,8 +1076,8 @@ predictor = TabularPredictor(
     path=predictor_path
 )
 
-# Model havuzunu da hafif tutmak için sınırlıyoruz.
-# (Ortamda bazı opsiyonel bağımlılıklar yoksa AutoGluon zaten ilgili modeli atlayabilir.)
+# Limit the model pool to keep the setup lightweight.
+# (If some optional dependencies are missing, AutoGluon may skip those models anyway.)
 hyperparameters = {
     "GBM": {},   # LightGBM
     "RF": {},    # RandomForest
@@ -993,12 +1094,12 @@ predictor.fit(
     hyperparameters=hyperparameters,
 )
 
-# 3) Tahmin
+# 3) Prediction
 y_pred = predictor.predict(test_df)
 proba_df = predictor.predict_proba(test_df)
 y_pred_proba = pick_positive_proba(proba_df, train_df[target_col])
 
-# 4) Metrikler
+# 4) Metrics
 y_test = test_df[target_col].to_numpy()
 y_pred_np = pd.Series(y_pred).astype(int).to_numpy()
 
@@ -1010,7 +1111,7 @@ recall = recall_score(y_test, y_pred_np)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred_np)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -1019,10 +1120,10 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-# Predictor boyutu
+# Predictor size on disk
 model_size_mb = get_dir_size_mb(predictor_path)
 
-print("\n=== AutoGluon Light Model Performansı (Test) ===")
+print("\n=== AutoGluon Light Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -1033,20 +1134,20 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== Model Bilgileri ===")
+print("\n=== Model Information ===")
 print(f"Predictor path: {predictor_path}")
-print(f"Predictor boyutu: {model_size_mb:.2f} MB")
+print(f"Predictor size: {model_size_mb:.2f} MB")
 
 # Leaderboard
 lb = predictor.leaderboard(test_df, silent=True)
@@ -1085,13 +1186,13 @@ def get_system_ram():
     return total, used, free, percent
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 
@@ -1099,25 +1200,25 @@ train_df, test_df = train_test_split(
     data, test_size=0.2, random_state=42, stratify=data[target_col]
 )
 
-# 2) H2O başlat
+# 2) Initialize H2O
 h2o.init(max_mem_size="4G")
 h2o.no_progress()
 
 train_h2o = h2o.H2OFrame(train_df)
 test_h2o = h2o.H2OFrame(test_df)
 
-# Sınıflandırma için hedefi factor yap
+# Convert target to categorical (factor) for classification
 train_h2o[target_col] = train_h2o[target_col].asfactor()
 test_h2o[target_col] = test_h2o[target_col].asfactor()
 
 x_cols = [c for c in train_df.columns if c != target_col]
 y_col = target_col
 
-# 3) H2O full ayarları
-# - max_runtime_secs: toplam süre limiti
-# - nfolds=5: CV
-# - exclude_algos ile None
-# Kaynak: H2OAutoML parametreleri (max_runtime_secs, exclude_algos, StackedEnsemble). :contentReference[oaicite:4]{index=4}
+# 3) H2O full configuration
+# - max_runtime_secs: total time limit
+# - nfolds=5: cross-validation
+# - exclude_algos=None: allow all algorithms
+# Source: H2OAutoML parameters (max_runtime_secs, exclude_algos, StackedEnsemble). :contentReference[oaicite:4]{index=4}
 aml = H2OAutoML(
     max_runtime_secs=180,
     nfolds=5,
@@ -1130,20 +1231,20 @@ aml.train(x=x_cols, y=y_col, training_frame=train_h2o)
 
 best_model = aml.leader
 
-# 4) Tahmin
+# 4) Prediction
 preds = best_model.predict(test_h2o)  # columns: predict, p0, p1
 preds_df = preds.as_data_frame()
 
 y_pred = preds_df["predict"].astype(int).to_numpy()
 
-# p1 sütunu (pozitif sınıf olasılığı) genelde "p1"
-# Bazı durumlarda sınıf etiketine göre p0/p1 isimlenmesi değişebilir; bu nedenle fallback ekliyoruz.
+# The p1 column (positive class probability) is usually named "p1".
+# In some cases, class-based naming may differ; therefore we add a fallback.
 proba_col = "p1" if "p1" in preds_df.columns else preds_df.columns[-1]
 y_pred_proba = preds_df[proba_col].to_numpy()
 
 y_test = test_df[target_col].astype(int).to_numpy()
 
-# 5) Metrikler
+# 5) Metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -1152,11 +1253,11 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# 6) Modeli kaydet
+# 6) Save model
 best_model_file = h2o.save_model(best_model, path=".", force=True)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -1165,7 +1266,7 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-print("\n=== H2O AutoML Full Model Performansı (Test) ===")
+print("\n=== H2O AutoML Full Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -1176,26 +1277,26 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== En İyi Model Bilgileri ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"Model dosyası: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.2f} MB")
+print("\n=== Best Model Information ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Model file: {best_model_file}")
+print(f"Model size: {model_size_mb:.2f} MB")
 
 print("\n=== Leaderboard ===")
 print(aml.leaderboard.as_data_frame().round(4))
 
-# H2O'yu kapat (RAM serbest)
+# Shutdown H2O (free memory)
 h2o.shutdown(prompt=False)
 
 """**LIGHT H2O**"""
@@ -1228,13 +1329,13 @@ def get_system_ram():
     return total, used, free, percent
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 
@@ -1242,25 +1343,25 @@ train_df, test_df = train_test_split(
     data, test_size=0.2, random_state=42, stratify=data[target_col]
 )
 
-# 2) H2O başlat
+# 2) Initialize H2O
 h2o.init(max_mem_size="4G")
 h2o.no_progress()
 
 train_h2o = h2o.H2OFrame(train_df)
 test_h2o = h2o.H2OFrame(test_df)
 
-# Sınıflandırma için hedefi factor yap
+# Convert target to categorical (factor) for classification
 train_h2o[target_col] = train_h2o[target_col].asfactor()
 test_h2o[target_col] = test_h2o[target_col].asfactor()
 
 x_cols = [c for c in train_df.columns if c != target_col]
 y_col = target_col
 
-# 3) H2O Light ayarları
-# - max_runtime_secs: toplam süre limiti
-# - nfolds=0: CV yok (hafif)
-# - exclude_algos ile StackedEnsemble ve DeepLearning kapalı
-# Kaynak: H2OAutoML parametreleri (max_runtime_secs, exclude_algos, StackedEnsemble). :contentReference[oaicite:4]{index=4}
+# 3) H2O Light configuration
+# - max_runtime_secs: total runtime limit
+# - nfolds=0: no cross-validation (lightweight)
+# - exclude_algos disables StackedEnsemble and DeepLearning
+# Source: H2OAutoML parameters (max_runtime_secs, exclude_algos, StackedEnsemble).
 aml = H2OAutoML(
     max_runtime_secs=60,
     nfolds=0,
@@ -1273,20 +1374,20 @@ aml.train(x=x_cols, y=y_col, training_frame=train_h2o)
 
 best_model = aml.leader
 
-# 4) Tahmin
+# 4) Prediction
 preds = best_model.predict(test_h2o)  # columns: predict, p0, p1
 preds_df = preds.as_data_frame()
 
 y_pred = preds_df["predict"].astype(int).to_numpy()
 
-# p1 sütunu (pozitif sınıf olasılığı) genelde "p1"
-# Bazı durumlarda sınıf etiketine göre p0/p1 isimlenmesi değişebilir; bu nedenle fallback ekliyoruz.
+# The p1 column (positive class probability) is usually named "p1".
+# In some cases class-based naming may differ, so we include a fallback.
 proba_col = "p1" if "p1" in preds_df.columns else preds_df.columns[-1]
 y_pred_proba = preds_df[proba_col].to_numpy()
 
 y_test = test_df[target_col].astype(int).to_numpy()
 
-# 5) Metrikler
+# 5) Metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -1295,11 +1396,11 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# 6) Modeli kaydet
+# 6) Save model
 best_model_file = h2o.save_model(best_model, path=".", force=True)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -1308,7 +1409,7 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-print("\n=== H2O AutoML Light Model Performansı (Test) ===")
+print("\n=== H2O AutoML Light Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -1319,26 +1420,26 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== En İyi Model Bilgileri ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"Model dosyası: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.2f} MB")
+print("\n=== Best Model Information ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Model file: {best_model_file}")
+print(f"Model size: {model_size_mb:.2f} MB")
 
 print("\n=== Leaderboard ===")
 print(aml.leaderboard.as_data_frame().round(4))
 
-# H2O'yu kapat (RAM serbest)
+# Shutdown H2O (free memory)
 h2o.shutdown(prompt=False)
 
 """**FLAML (Full)**"""
@@ -1374,7 +1475,7 @@ def get_system_ram():
 
 
 def pick_pos_proba(proba: np.ndarray) -> np.ndarray:
-    # proba shape: (n,2) beklenir; fallback: son sütun
+    # Expected proba shape: (n, 2); fallback: last column
     if proba.ndim == 2 and proba.shape[1] >= 2:
         return proba[:, 1]
     if proba.ndim == 1:
@@ -1382,13 +1483,13 @@ def pick_pos_proba(proba: np.ndarray) -> np.ndarray:
     return proba[:, -1]
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 X = data.drop(columns=[target_col])
@@ -1398,11 +1499,11 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# 2) FLAML ayarları
-# - time_budget: toplam süre limiti (saniye)
-# - task/metric ayarları
-# - predict_proba ve en iyi estimator'a automl.model.estimator ile erişim
-# Kaynak: FLAML sınıflandırma örneği. :contentReference[oaicite:5]{index=5}
+# 2) FLAML configuration
+# - time_budget: total time limit (seconds)
+# - task/metric: classification objective and optimization metric
+# - predict_proba and best estimator access via automl.model.estimator
+# Source: FLAML classification example.
 automl = AutoML()
 
 automl_settings = {
@@ -1412,9 +1513,9 @@ automl_settings = {
     "seed": 42,
     "log_file_name": "flaml_heart_full.log",
     # 5-fold CV
-    #"eval_method": "cv",
+    # "eval_method": "cv",
     "n_splits": 5,
-    # daha hızlı değerlendirme:
+    # Faster evaluation:
     "eval_method": "holdout",
     "split_ratio": 0.2,
     "n_jobs": -1,
@@ -1422,11 +1523,11 @@ automl_settings = {
 
 automl.fit(X_train=X_train, y_train=y_train, **automl_settings)
 
-# 3) Tahmin
+# 3) Prediction
 y_pred = automl.predict(X_test).astype(int)
 y_pred_proba = pick_pos_proba(automl.predict_proba(X_test))
 
-# 4) Metrikler
+# 4) Metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -1435,13 +1536,13 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# 5) En iyi modeli kaydet
+# 5) Save the best model
 best_model = automl.model
 best_model_file = "flaml_heart_full_best_model.pkl"
 joblib.dump(best_model, best_model_file)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -1450,7 +1551,7 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-print("\n=== FLAML Full Model Performansı (Test) ===")
+print("\n=== FLAML Full Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -1461,22 +1562,22 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== En İyi Model Bilgileri ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"En iyi estimator:  {getattr(best_model, 'estimator', 'N/A')}")
-print(f"Model dosyası: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.2f} MB")
+print("\n=== Best Model Information ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Best estimator:  {getattr(best_model, 'estimator', 'N/A')}")
+print(f"Model file: {best_model_file}")
+print(f"Model size: {model_size_mb:.2f} MB")
 
 """**LIGHT FLAML**"""
 
@@ -1509,7 +1610,7 @@ def get_system_ram():
 
 
 def pick_pos_proba(proba: np.ndarray) -> np.ndarray:
-    # proba shape: (n,2) beklenir; fallback: son sütun
+    # Expected proba shape: (n, 2); fallback: last column
     if proba.ndim == 2 and proba.shape[1] >= 2:
         return proba[:, 1]
     if proba.ndim == 1:
@@ -1517,13 +1618,13 @@ def pick_pos_proba(proba: np.ndarray) -> np.ndarray:
     return proba[:, -1]
 
 
-# === Başlangıç ölçümleri ===
+# === Initial measurements ===
 process = psutil.Process(os.getpid())
 start_proc_mem = process.memory_info().rss / (1024 * 1024)  # MB
 start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
 start_time = time.time()
 
-# 1) Veri
+# 1) Data
 data = pd.read_csv("heart_merged_clean.csv")
 target_col = "target"
 X = data.drop(columns=[target_col])
@@ -1533,11 +1634,11 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# 2) FLAML Light ayarları
-# - time_budget: toplam süre limiti (saniye)
-# - task/metric ayarları
-# - predict_proba ve en iyi estimator'a automl.model.estimator ile erişim
-# Kaynak: FLAML sınıflandırma örneği. :contentReference[oaicite:5]{index=5}
+# 2) FLAML Light configuration
+# - time_budget: total time limit (seconds)
+# - task/metric: classification objective and optimization metric
+# - predict_proba and best estimator access via automl.model.estimator
+# Source: FLAML classification example.
 automl = AutoML()
 
 automl_settings = {
@@ -1546,9 +1647,9 @@ automl_settings = {
     "metric": "f1",
     "seed": 42,
     "log_file_name": "flaml_heart_light.log",
-    # hafiflik için (opsiyonel) model listesini daralt:
+    # (Optional) Narrow down estimator list for a lighter/faster run:
     "estimator_list": ["lgbm", "rf", "extra_tree", "lrl1"],
-    # daha hızlı değerlendirme:
+    # Faster evaluation:
     "eval_method": "holdout",
     "split_ratio": 0.2,
     "n_jobs": -1,
@@ -1556,11 +1657,11 @@ automl_settings = {
 
 automl.fit(X_train=X_train, y_train=y_train, **automl_settings)
 
-# 3) Tahmin
+# 3) Prediction
 y_pred = automl.predict(X_test).astype(int)
 y_pred_proba = pick_pos_proba(automl.predict_proba(X_test))
 
-# 4) Metrikler
+# 4) Metrics
 acc = accuracy_score(y_test, y_pred)
 auc = roc_auc_score(y_test, y_pred_proba)
 f1 = f1_score(y_test, y_pred)
@@ -1569,13 +1670,13 @@ recall = recall_score(y_test, y_pred)
 ll = log_loss(y_test, y_pred_proba)
 cm = confusion_matrix(y_test, y_pred)
 
-# 5) En iyi modeli kaydet
+# 5) Save the best model
 best_model = automl.model
 best_model_file = "flaml_heart_light_best_model.pkl"
 joblib.dump(best_model, best_model_file)
 model_size_mb = os.path.getsize(best_model_file) / (1024 * 1024)
 
-# === Bitiş ölçümleri ===
+# === Final measurements ===
 end_time = time.time()
 end_proc_mem = process.memory_info().rss / (1024 * 1024)
 end_sys_total, end_sys_used, end_sys_free, end_sys_percent = get_system_ram()
@@ -1584,7 +1685,7 @@ runtime = end_time - start_time
 proc_mem_usage = end_proc_mem - start_proc_mem
 sys_used_diff = end_sys_used - start_sys_used
 
-print("\n=== FLAML Light Model Performansı (Test) ===")
+print("\n=== FLAML Light Model Performance (Test) ===")
 print(f"Accuracy:  {acc*100:.2f}%")
 print(f"AUC:       {auc*100:.2f}%")
 print(f"F1 Score:  {f1*100:.2f}%")
@@ -1595,24 +1696,26 @@ print(f"LogLoss:   {ll:.2f}")
 print("\nConfusion Matrix:")
 print(cm)
 
-print("\n=== Özet Bilgiler ===")
-print(f"Koşum Süresi: {runtime:.2f} saniye")
-print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+print("\n=== Summary ===")
+print(f"Runtime: {runtime:.2f} seconds")
+print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-print("\n=== Sistem Genel RAM Kullanımı ===")
-print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-print(f"Boş RAM:            {end_sys_free:.2f} GB")
-print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+print("\n=== System RAM Usage ===")
+print(f"Total RAM:         {end_sys_total:.2f} GB")
+print(f"Used RAM:          {end_sys_used:.2f} GB")
+print(f"Available RAM:     {end_sys_free:.2f} GB")
+print(f"RAM utilization:   {end_sys_percent:.1f}%")
+print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-print("\n=== En İyi Model Bilgileri ===")
-print(f"En iyi model tipi: {type(best_model).__name__}")
-print(f"En iyi estimator:  {getattr(best_model, 'estimator', 'N/A')}")
-print(f"Model dosyası: {best_model_file}")
-print(f"Model boyutu: {model_size_mb:.2f} MB")
+print("\n=== Best Model Information ===")
+print(f"Best model type: {type(best_model).__name__}")
+print(f"Best estimator:  {getattr(best_model, 'estimator', 'N/A')}")
+print(f"Model file: {best_model_file}")
+print(f"Model size: {model_size_mb:.2f} MB")
 
-"""**1) Klasik ML Full vs Light (Time-budget’lı)**"""
+"""**1) Classic ML Full vs Light (with Time-budget)**
+
+"""
 
 import os, time, psutil, joblib, warnings, random
 warnings.filterwarnings("ignore")
@@ -1627,7 +1730,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from sklearn.base import clone # ADDED THIS LINE
+from sklearn.base import clone  # ADDED THIS LINE
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
@@ -1689,7 +1792,7 @@ def predict_proba_safe(model, X):
     if hasattr(model, "decision_function"):
         s = model.decision_function(X)
         return 1 / (1 + np.exp(-s))
-    # fallback: hard preds -> prob
+    # fallback: hard predictions -> pseudo probabilities
     p = model.predict(X)
     return p.astype(float)
 
@@ -1714,18 +1817,18 @@ def print_block(title, acc, auc, f1, precision, recall, ll, cm, y_true=None, y_p
 # -------------------------
 def build_ml_candidates(seed=42, mode="full"):
     """
-    mode="light": sabit hızlı ayarlar
-    mode="full" : timed random search ile param arama yapılacak
+    mode="light": fixed, fast settings
+    mode="full" : timed random search will be used for hyperparameter tuning
     """
     candidates = {}
 
-    # Logistic Regression (scale)
+    # Logistic Regression (with scaling)
     candidates["LogReg"] = {
         "base": Pipeline([("scaler", StandardScaler()),
                           ("clf", LogisticRegression(max_iter=2000, n_jobs=-1))]),
         "space": {
             "clf__C": np.logspace(-2, 2, 30),
-            "clf__penalty": ["l2"],  # liblinear + l1 is possible but keep stable
+            "clf__penalty": ["l2"],  # l1 via liblinear is possible, but keep it stable
             "clf__solver": ["lbfgs", "liblinear"]
         }
     }
@@ -1757,7 +1860,7 @@ def build_ml_candidates(seed=42, mode="full"):
         }
     }
 
-    # MLP (scale)
+    # MLP (with scaling)
     candidates["MLP_sklearn"] = {
         "base": Pipeline([
             ("scaler", StandardScaler()),
@@ -1840,13 +1943,13 @@ def timed_random_search_one_model(
     time_left_s, seed=42, max_trials_cap=10_000
 ):
     """
-    Tek bir model için time_left_s kadar random param dene.
-    En iyi val F1'ı döndür.
+    For a single model, try random parameter configurations for up to time_left_s seconds.
+    Returns the best validation F1.
     """
     t_start = time.time()
     best = {"f1": -1, "params": None, "fit_time": 0.0}
 
-    # param örnekleri (çok büyük bir üst limit ile)
+    # Parameter samples (with a very large upper cap)
     sampler = ParameterSampler(param_space, n_iter=max_trials_cap, random_state=seed)
 
     tried = 0
@@ -1917,13 +2020,13 @@ def run_classic_ml_full_light(
         candidates = build_ml_candidates(seed=seed, mode=mode_name)
         results = []
 
-        # 1) Baseline (her modeli 1 kez default/fast ayarla, val F1 ölç)
+        # 1) Baseline (fit each model once with default/fast settings, measure val F1)
         baseline_scores = []
         for name, item in candidates.items():
             model = clone(item["base"])
 
-            # light modda hızlı sabit (az ağaç vs) için base zaten dar;
-            # full modda base paramları default kalır, sonra search ile iyileşir.
+            # In light mode, the base is already constrained (fewer trees, etc.).
+            # In full mode, base parameters remain default and will be improved by random search.
             t0 = time.time()
             try:
                 model.fit(X_tr, y_tr)
@@ -1946,19 +2049,19 @@ def run_classic_ml_full_light(
 
         baseline_scores.sort(key=lambda x: x[1], reverse=True)
 
-        # 2) Full mod: timed random search sadece top-K üzerinde (adillik + hız)
+        # 2) Full mode: timed random search only on top-K models (fairness + speed)
         best_global = {"model": None, "val_f1": -1, "params": None}
         for name, f1v, _ in baseline_scores:
             if f1v > best_global["val_f1"]:
                 best_global = {"model": name, "val_f1": f1v, "params": None}
 
         if mode_name == "full":
-            # bütçeyi top3 modele dağıt (top3 çoğu zaman yeterli)
+            # Split the budget across top-3 models (top3 is usually enough)
             topK = [x[0] for x in baseline_scores[:3]]
             remaining = time_budget_s - (time.time() - start_time)
             remaining = max(0.0, remaining)
 
-            # her modele eşit pay + küçük buffer
+            # Equal share per model + small buffer
             per_model_budget = max(5.0, remaining / max(1, len(topK)))
 
             for name in topK:
@@ -1991,7 +2094,7 @@ def run_classic_ml_full_light(
                 if best["f1"] > best_global["val_f1"]:
                     best_global = {"model": name, "val_f1": best["f1"], "params": best["params"]}
 
-        # 3) Best config retrain on full training set (X_train) and evaluate on test
+        # 3) Retrain best config on full training set (X_train) and evaluate on test
         best_name = best_global["model"]
         best_params = best_global["params"]
 
@@ -2023,25 +2126,27 @@ def run_classic_ml_full_light(
         joblib.dump(best_model, out_file)
         model_size_mb = os.path.getsize(out_file) / (1024 * 1024)
 
-        print_block(f"Classic ML {mode_name.upper()} Best = {best_name}",
-                    acc, auc, f1, precision, recall, ll, cm,
-                    y_true=y_test, y_pred=test_pred)
+        print_block(
+            f"Classic ML {mode_name.upper()} Best = {best_name}",
+            acc, auc, f1, precision, recall, ll, cm,
+            y_true=y_test, y_pred=test_pred
+        )
 
-        print("\n=== Özet Bilgiler ===")
-        print(f"Koşum Süresi: {runtime:.2f} saniye (Budget={time_budget_s}s)")
-        print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+        print("\n=== Summary ===")
+        print(f"Runtime: {runtime:.2f} seconds (Budget={time_budget_s}s)")
+        print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-        print("\n=== Sistem Genel RAM Kullanımı ===")
-        print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-        print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-        print(f"Boş RAM:            {end_sys_free:.2f} GB")
-        print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-        print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+        print("\n=== System RAM Usage ===")
+        print(f"Total RAM:         {end_sys_total:.2f} GB")
+        print(f"Used RAM:          {end_sys_used:.2f} GB")
+        print(f"Available RAM:     {end_sys_free:.2f} GB")
+        print(f"RAM utilization:   {end_sys_percent:.1f}%")
+        print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-        print("\n=== En İyi Model Dosyası ===")
+        print("\n=== Best Model Artifact ===")
         print(f"Model: {best_name}")
-        print(f"Model yolu: {out_file}")
-        print(f"Model boyutu: {model_size_mb:.4f} MB")
+        print(f"Model path: {out_file}")
+        print(f"Model size: {model_size_mb:.4f} MB")
         if best_params is not None:
             print(f"Best params: {best_params}")
 
@@ -2057,9 +2162,14 @@ def run_classic_ml_full_light(
     print("\n=== (Val) Leaderboard Summary (FULL) ===")
     display(full_df.head(30))
 
-    return {"light_model": light_file, "full_model": full_file, "light_trials": light_df, "full_trials": full_df}
+    return {
+        "light_model": light_file,
+        "full_model": full_file,
+        "light_trials": light_df,
+        "full_trials": full_df
+    }
 
-# preprocess -> heart_merged_clean.csv hazır
+# preprocess -> heart_merged_clean.csv ready
 out = run_classic_ml_full_light(
     clean_csv_path="heart_merged_clean.csv",
     target_col="target",
@@ -2153,8 +2263,8 @@ class TabularCNN1D(nn.Module):
 
     def forward(self, x):
         # x: (B, F)
-        x = x.unsqueeze(1)          # (B, 1, F)
-        h = self.conv(x)            # (B, C, F)
+        x = x.unsqueeze(1)           # (B, 1, F)
+        h = self.conv(x)             # (B, C, F)
         h = self.pool(h).squeeze(-1) # (B, C)
         logits = self.head(h).squeeze(1)
         return logits
@@ -2231,7 +2341,7 @@ class AEClassifier(nn.Module):
         return self.head(z).squeeze(1)
 
 # -----------------------------
-# Core train (time-budget + early stop)
+# Core training (time-budget + early stopping)
 # -----------------------------
 def train_supervised_timebudget(
     model: nn.Module,
@@ -2268,7 +2378,7 @@ def train_supervised_timebudget(
     bad = 0
     epochs_done = 0
 
-    # --- train on inner train, select by val F1 ---
+    # --- Train on inner-train, select by validation F1 ---
     for epoch in range(1, max_epochs + 1):
         if time.time() - start_time >= time_budget_s:
             break
@@ -2312,7 +2422,7 @@ def train_supervised_timebudget(
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    # --- short finetune on full outer train within remaining time ---
+    # --- Short fine-tuning on the full outer-train within remaining time ---
     Xtrain_t = torch.tensor(X_train_full).to(device)
     ytrain_t = torch.tensor(y_train_full).float().to(device)
 
@@ -2337,7 +2447,7 @@ def train_supervised_timebudget(
             optimizer.step()
         finetuned += 1
 
-    # --- test ---
+    # --- Test ---
     model.eval()
     with torch.no_grad():
         Xte_t = torch.tensor(X_test).to(device)
@@ -2367,20 +2477,20 @@ def train_supervised_timebudget(
                 acc, auc, f1, precision, recall, ll, cm,
                 y_true=y_test, y_pred=te_pred)
 
-    print("\n=== Özet Bilgiler ===")
-    print(f"Koşum Süresi: {runtime:.2f} saniye (Budget={time_budget_s}s)")
-    print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
+    print("\n=== Summary ===")
+    print(f"Runtime: {runtime:.2f} seconds (Budget={time_budget_s}s)")
+    print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
 
-    print("\n=== Sistem Genel RAM Kullanımı ===")
-    print(f"Toplam RAM:         {end_sys_total:.2f} GB")
-    print(f"Kullanılan RAM:     {end_sys_used:.2f} GB")
-    print(f"Boş RAM:            {end_sys_free:.2f} GB")
-    print(f"RAM Kullanım Oranı: {end_sys_percent:.1f}%")
-    print(f"Koşum sırasında artan RAM: {sys_used_diff:.2f} GB")
+    print("\n=== System RAM Usage ===")
+    print(f"Total RAM:         {end_sys_total:.2f} GB")
+    print(f"Used RAM:          {end_sys_used:.2f} GB")
+    print(f"Available RAM:     {end_sys_free:.2f} GB")
+    print(f"RAM utilization:   {end_sys_percent:.1f}%")
+    print(f"RAM increase during run: {sys_used_diff:.2f} GB")
 
-    print("\n=== Model Dosyası ===")
-    print(f"Model yolu: {out_file}")
-    print(f"Model boyutu: {model_size_mb:.4f} MB")
+    print("\n=== Model file ===")
+    print(f"Model path: {out_file}")
+    print(f"Model size: {model_size_mb:.4f} MB")
     print(f"epochs_done={epochs_done} | finetuned_epochs={finetuned} | best_val_f1={best_val_f1:.4f}")
 
     return out_file
@@ -2397,8 +2507,8 @@ def train_ae_then_clf_timebudget(
     out_file: str,
 ):
     """
-    AE: reconstruction pretrain (unsupervised) + classifier finetune
-    Budget'ı adil tutmak için: light'ta daha az AE pretrain, full'da biraz daha fazla.
+    AE: reconstruction pretraining (unsupervised) + classifier fine-tuning.
+    To keep budgets fair: fewer AE epochs in light mode, more in full mode.
     """
     start_time = time.time()
     process = psutil.Process(os.getpid())
@@ -2426,10 +2536,10 @@ def train_ae_then_clf_timebudget(
     Xtr_t = torch.tensor(X_tr).to(device)
     Xva_t = torch.tensor(X_val).to(device)
 
-    # --- AE pretrain (stop if time over) ---
+    # --- AE pretraining (stop if out of time) ---
     ae.train()
     for epoch in range(1, ae_epochs + 1):
-        if time.time() - start_time >= time_budget_s * 0.55:  # budget'ın ~%55'i AE'ye
+        if time.time() - start_time >= time_budget_s * 0.55:  # ~55% of budget goes to AE
             break
         perm = torch.randperm(Xtr_t.size(0), device=device)
         Xb = Xtr_t[perm]
@@ -2445,25 +2555,22 @@ def train_ae_then_clf_timebudget(
 
     # --- classifier on top of encoder ---
     clf = AEClassifier(encoder=ae.encoder, latent_dim=8).to(device)
-    # encoder'ı da fine-tune edelim (genelde iyi olur)
+    # Fine-tune the encoder as well (usually helps)
     criterion = nn.BCEWithLogitsLoss()
     opt = torch.optim.Adam(clf.parameters(), lr=lr_clf)
 
     y_train_full = y_train_full.astype(int)
     y_tr_full_t = torch.tensor(y_train_full).float().to(device)
 
-    # inner split yoksa bile adil olmak için: val üzerinden early-stop
+    # Even if there is no inner split, use validation early-stopping for fairness.
     y_val_dummy = None
     if X_val is not None:
-        # y_val yok (AE pretrain'de kullanılmadı), burada supervised val lazım:
-        # pratik: full trainin bir kısmını val gibi kullan
+        # y_val is not provided here; supervised validation labels are needed.
+        # Practical workaround: use a subset of the full train as a validation split.
         pass
 
-    # burada supervised train için dışarıdan X_tr,y_tr ve X_val,y_val hazırlayacağız:
-    # (bu fonksiyon çağrılırken y_tr/y_val de verilse daha iyi, ama sadelik için aşağıda run fonksiyonunda hallediyoruz)
-    # -> Bu yüzden AE'yi run fonksiyonunda supervised_train kısmına sokacağız.
-
-    # Bu fonksiyonu basitleştirmek için burada sadece encoder döndürelim:
+    # NOTE: For simplicity, this function returns the initialized modules and timing info.
+    # The actual supervised training loop is implemented in the runner below.
     return clf, ae, start_time, start_proc_mem, start_sys_used, start_sys_total, start_sys_free, start_sys_percent
 
 # -----------------------------
@@ -2520,7 +2627,7 @@ def run_dl_full_light_multi(
         in_dim = X_tr_s.shape[1]
 
         if model_name == "CNN":
-            # light daha küçük kanal, full daha büyük
+            # Smaller channels for light; larger for full
             ch = 24 if mode_name == "light" else 32
             model = TabularCNN1D(n_features=in_dim, channels=ch, dropout=0.15)
             out_file = f"dl_cnn_{mode_name}_best.pt"
@@ -2542,7 +2649,7 @@ def run_dl_full_light_multi(
 
         elif model_name in ("RNN", "GRU", "LSTM"):
             rnn_type = "rnn" if model_name == "RNN" else model_name.lower()
-            # light daha küçük, full biraz daha büyük kapasite
+            # Smaller capacity for light; slightly larger for full
             hidden = 24 if mode_name == "light" else 32
             model = TabularRNNBinary(n_features=in_dim, rnn_type=rnn_type, hidden_size=hidden, num_layers=1, dropout=0.0)
             out_file = f"dl_{model_name.lower()}_{mode_name}_best.pt"
@@ -2563,8 +2670,8 @@ def run_dl_full_light_multi(
             )
 
         elif model_name == "AE":
-            # 1) AE pretrain (unsupervised) budget'ın bir kısmı
-            # 2) AEClassifier supervised: kalan sürede train_supervised_timebudget benzeri (ayrı yazalım)
+            # 1) AE pretraining (unsupervised) uses a portion of the budget
+            # 2) Supervised AEClassifier training uses the remaining time
             process = psutil.Process(os.getpid())
             start_proc_mem = process.memory_info().rss / (1024 * 1024)
             start_sys_total, start_sys_used, start_sys_free, start_sys_percent = get_system_ram()
@@ -2590,7 +2697,7 @@ def run_dl_full_light_multi(
 
             Xtr_t = torch.tensor(X_tr_s).to(device)
 
-            # AE pretrain: budget'ın ~%45'i
+            # AE pretraining: ~45% of the budget
             ae.train()
             for epoch in range(1, ae_epochs + 1):
                 if time.time() - start_time >= budget_s * 0.45:
@@ -2620,7 +2727,7 @@ def run_dl_full_light_multi(
             bad = 0
             epochs_done = 0
 
-            # supervised train with remaining time
+            # supervised training with remaining time
             for epoch in range(1, clf_max_epochs + 1):
                 if time.time() - start_time >= budget_s:
                     break
@@ -2692,13 +2799,14 @@ def run_dl_full_light_multi(
                         acc, auc, f1, precision, recall, ll, cm,
                         y_true=y_test, y_pred=te_pred)
 
-            print("\n=== Özet Bilgiler ===")
-            print(f"Koşum Süresi: {runtime:.2f} saniye (Budget={budget_s}s)")
-            print(f"Python İşlemi RAM Kullanımı: {proc_mem_usage:.2f} MB")
-            print(f"Koşum sırasında artan RAM (sys): {sys_used_diff:.2f} GB")
-            print("\n=== Model Dosyası ===")
-            print(f"Model yolu: {out_file}")
-            print(f"Model boyutu: {model_size_mb:.4f} MB")
+            print("\n=== Summary ===")
+            print(f"Runtime: {runtime:.2f} seconds (Budget={budget_s}s)")
+            print(f"Python process RAM usage: {proc_mem_usage:.2f} MB")
+            print(f"System RAM increase during run: {sys_used_diff:.2f} GB")
+
+            print("\n=== Model file ===")
+            print(f"Model path: {out_file}")
+            print(f"Model size: {model_size_mb:.4f} MB")
             print(f"epochs_done={epochs_done} | best_val_f1={best_val_f1:.4f}")
 
             return out_file
