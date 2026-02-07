@@ -1,100 +1,336 @@
-# heart-merged-automl-dl-ml-benchmark
+# Heart Disease Benchmark — AutoML vs ML vs DL
 
-Heart disease benchmark on the merged UCI datasets (Cleveland, Hungary, Switzerland, VA Long Beach) comparing **Classic ML**, **Deep Learning (PyTorch)**, and **AutoML frameworks** (AutoGluon, H2O, MLJAR, FLAML) under **Full vs Lightweight**, time-budgeted, reproducible settings with metric & resource logging.
+## Time-Budgeted & Reproducible Benchmark Framework
+
+---
+
+## Overview
+
+This project provides a **fully reproducible, time-budgeted benchmark** comparing:
+
+* AutoML frameworks (MLJAR, AutoGluon, H2O, FLAML)
+* Classical Machine Learning models
+* Deep Learning architectures (CNN, RNN, GRU, LSTM, AutoEncoder)
+
+for **binary heart disease detection** using a merged clinical dataset derived from multiple UCI Heart Disease sources.
+
+The goal is to evaluate **performance vs computational cost** under controlled runtime budgets.
+
+---
 
 ## Dataset
-This repository expects a merged CSV named:
 
-- `cleveland_hungarian_long-beach-va_switzerland.csv`
+### Raw dataset
 
-The dataset file is **not** committed to the repository (see `.gitignore`). Place it in the project root (or in `data/` if you prefer, then update paths accordingly).
+```
+cleveland_hungarian_long-beach-va_switzerland.csv
+```
 
-### Target definition
-The original `num`/`target` in UCI can be multi-class (0–4). In this project it is binarized as:
-- `0 → 0` (no disease)
-- `1–4 → 1` (disease)
+Merged from:
 
-## What is measured
-For each run, we report:
-- **Performance**: Accuracy, AUC, F1, Precision, Recall, LogLoss, Confusion Matrix
-- **Resources**: wall-clock runtime, process RSS (MB), system RAM delta (GB), serialized model size (MB)
+* Cleveland
+* Hungarian
+* Long Beach VA
+* Switzerland heart disease datasets
 
-## Project structure (recommended)
-├─ src/
-│ ├─ preprocess.py
-│ ├─ figures_raw.py
-│ ├─ figures_clean.py
-│ ├─ workflow_fig.py
-│ ├─ classic_ml.py
-│ ├─ dl_models.py
-│ ├─ automl_mljar.py
-│ ├─ automl_autogluon.py
-│ ├─ automl_h2o.py
-│ └─ automl_flaml.py
-├─ scripts/
-│ ├─ run_all.sh
-├─ requirements.txt
-└─ README.md
+---
 
-> We will create these files incrementally from your Colab notebook code.
+### Preprocessed dataset
 
-## Environment
-- OS / CPU / RAM: see paper’s **Table 1**
-- Key libraries (from your environment):
-  - numpy==2.0.2, pandas==2.2.2, scikit-learn==1.6.1, lightgbm==4.6.0, xgboost==3.1.2
+```
+heart_merged_clean.csv
+```
 
-## Quickstart
-1) Install dependencies:
+Generated via deterministic preprocessing.
+
+---
+
+## Preprocessing Pipeline
+
+The preprocessing is **fully deterministic and reproducible**.
+
+Steps:
+
+1. Convert missing placeholders (`?`, `??`, etc.) → NaN
+2. Strip column names
+3. Cast all columns to numeric
+4. Validate expected schema
+5. Binarize target
+
+   ```
+   0 → 0 (no disease)
+   1–4 → 1 (disease)
+   ```
+6. Remove rows with missing target
+7. Impute feature NaNs using column medians
+8. Save cleaned dataset
+
+Run:
+
+```python
+df_clean = preprocess_heart_csv(
+    "cleveland_hungarian_long-beach-va_switzerland.csv",
+    "heart_merged_clean.csv"
+)
+```
+
+---
+
+## Dataset Visualization
+
+Two figure sets are automatically generated.
+
+### Raw dataset figures
+
+Directory:
+
+```
+figures_raw_900/
+```
+
+Includes:
+
+* Missing value distribution
+* Target distribution
+* Feature completeness heatmap
+* Boxplots
+* Correlation matrix
+
+---
+
+### Clean dataset figures
+
+Directory:
+
+```
+figures_900/
+```
+
+Includes:
+
+* Class balance
+* Feature distributions
+* Correlation heatmap
+* Scatter plots
+* Workflow diagram
+
+Generate figures:
+
+```python
+make_peerj_figures_raw_900(...)
+make_peerj_figures_900(...)
+make_fig3_workflow(...)
+```
+
+All figures are exported as **900×900 PNG**, suitable for journal submission.
+
+---
+
+## Experimental Protocol
+
+Each framework/model is evaluated under two runtime regimes:
+
+### Light regime
+
+```
+60 seconds total budget
+```
+
+Focus:
+
+* fast convergence
+* minimal tuning
+* lightweight configurations
+
+---
+
+### Full regime
+
+```
+180 seconds total budget
+```
+
+Allows:
+
+* broader hyperparameter search
+* stacking/bagging (AutoML)
+* deeper DL training
+
+---
+
+## Train/Test Protocol
+
+Strict reproducibility:
+
+```
+Outer split: Train/Test (80/20, stratified, seed=42)
+Inner split: Train/Validation for tuning
+```
+
+No test leakage is allowed.
+
+---
+
+## AutoML Benchmarks
+
+Frameworks:
+
+* MLJAR AutoML
+* AutoGluon Tabular
+* H2O AutoML
+* FLAML
+
+Each framework runs in:
+
+```
+Light mode → 60 seconds
+Full mode → 180 seconds
+```
+
+Metrics:
+
+* Accuracy
+* AUC
+* F1 score
+* Precision
+* Recall
+* LogLoss
+* Confusion matrix
+
+Resource logging:
+
+* Runtime
+* Python memory usage
+* System RAM delta
+* Serialized model size
+
+---
+
+## Classical ML Benchmark
+
+Models include:
+
+* Logistic Regression
+* Random Forest
+* Extra Trees
+* MLP
+* XGBoost *(optional)*
+* LightGBM *(optional)*
+* CatBoost *(optional)*
+
+Timed hyperparameter search is applied only in **full mode**.
+
+---
+
+## Deep Learning Benchmark
+
+Architectures:
+
+* 1D CNN
+* RNN
+* GRU
+* LSTM
+* AutoEncoder + classifier
+
+Training features:
+
+* early stopping
+* validation-based selection
+* strict time budgeting
+* deterministic seeds
+
+---
+
+## Reproducibility Guarantees
+
+✔ Fixed seeds (42)
+✔ Deterministic preprocessing
+✔ Explicit train/validation/test splits
+✔ Time-budget controlled training
+✔ Saved models
+✔ Resource logging
+✔ Automatic figure generation
+
+---
+
+## Requirements
+
+Install dependencies:
+
 ```bash
 pip install -r requirements.txt
+```
 
-2) Preprocess (creates heart_merged_clean.csv):
-python -m src.preprocess \
-  --input cleveland_hungarian_long-beach-va_switzerland.csv \
-  --output heart_merged_clean.csv
+To regenerate requirements:
 
-3) Generate figures (900x900 px):  
-python -m src.figures_raw  --input cleveland_hungarian_long-beach-va_switzerland.csv --out figures_raw_900
-python -m src.figures_clean --input heart_merged_clean.csv --out figures_900
-python -m src.workflow_fig  --out figures_900
+```bash
+pip freeze > requirements.txt
+```
 
-4) Run benchmarks:
-python -m src.classic_ml --data heart_merged_clean.csv --full_budget 180 --light_budget 60
-python -m src.dl_models  --data heart_merged_clean.csv --full_budget 180 --light_budget 60
-# AutoML:
-python -m src.automl_flaml --data heart_merged_clean.csv --mode full  --budget 180 --cv 1
-python -m src.automl_flaml --data heart_merged_clean.csv --mode light --budget 60  --cv 0
+Key libraries:
 
-Notes on reproducibility
+```
+pandas
+numpy
+scikit-learn
+mljar-supervised
+autogluon
+h2o
+flaml
+torch
+psutil
+matplotlib
+```
 
-Fixed random seed (seed=42) is used consistently across splits and model training.
+---
 
-Outer train/test split is stratified; an inner validation split is used for selection/early stopping without touching the test set.
+## Running the Benchmark
 
-Full vs Lightweight are defined by explicit budgets and constrained search/model pools (see paper’s Table 2).
+1. Preprocess dataset
+2. Generate figures
+3. Run AutoML benchmarks
+4. Run ML benchmarks
+5. Run DL benchmarks
 
-License
-MIT License
+Each stage produces saved models and metrics logs.
 
-Copyright (c) 2026 Ersin Enes Eryılmaz
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Output Artifacts
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+* Clean dataset CSV
+* Saved models (.pkl / .pt)
+* Performance metrics
+* Leaderboards
+* Publication-ready figures
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+---
 
-## Data Availability
-The Heart Disease dataset analyzed in this study is publicly available from the UCI Machine Learning Repository (Detrano et al., 1989; Janosi et al., 1988).
+## Intended Use
+
+This benchmark is designed for:
+
+* AutoML vs ML vs DL comparisons
+* reproducibility studies
+* time-constrained model evaluation
+* academic research
+
+---
+
+## Citation
+
+If used in research, please cite:
+
+**GitHub:**
+[https://github.com/ersineneseryilmaz/heart-merged-automl-dl-ml-benchmark](https://github.com/ersineneseryilmaz/heart-merged-automl-dl-ml-benchmark)
+
+**Zenodo DOI:**
+10.5281/zenodo.18283626
+
+---
+
+## License
+
+Academic/research use. See repository license for details.
+
+---
