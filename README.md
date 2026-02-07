@@ -326,6 +326,7 @@ If used in research, please cite:
 
 **Zenodo DOI:**
 10.5281/zenodo.18283626
+newer version: https://doi.org/10.5281/zenodo.18514862
 
 ---
 
