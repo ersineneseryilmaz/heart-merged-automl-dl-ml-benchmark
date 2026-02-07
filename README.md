@@ -325,8 +325,8 @@ If used in research, please cite:
 [https://github.com/ersineneseryilmaz/heart-merged-automl-dl-ml-benchmark](https://github.com/ersineneseryilmaz/heart-merged-automl-dl-ml-benchmark)
 
 **Zenodo DOI:**
-10.5281/zenodo.18283625
-
+[10.5281/zenodo.18283625
+](https://doi.org/10.5281/zenodo.18283625)
 ---
 
 ## License
