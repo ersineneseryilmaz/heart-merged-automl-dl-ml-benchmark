@@ -1,12 +1,12 @@
 # Heart Disease Benchmark — AutoML vs ML vs DL
 
-## Time-Budgeted & Reproducible Benchmark Framework
+## Time-Aware & Reproducible Benchmark Framework
 
 ---
 
 ## Overview
 
-This project provides a **fully reproducible, time-budgeted benchmark** comparing:
+This project provides a **fully reproducible, time-aware benchmark** comparing:
 
 * AutoML frameworks (MLJAR, AutoGluon, H2O, FLAML)
 * Classical Machine Learning models
