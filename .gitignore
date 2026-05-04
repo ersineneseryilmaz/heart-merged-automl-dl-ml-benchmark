@@ -1,73 +1,126 @@
-# =========================
+# ============================================================
 # Python / Bytecode
-# =========================
+# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
 
-# =========================
+# ============================================================
+# Build / Packaging
+# ============================================================
+build/
+dist/
+*.egg-info/
+.eggs/
+MANIFEST
+
+# ============================================================
 # Virtualenv / Conda
-# =========================
+# ============================================================
 .venv/
 venv/
 env/
+ENV/
 conda/
-*.conda
 .conda/
+*.conda
 
-# =========================
+# ============================================================
 # Jupyter / Colab
-# =========================
+# ============================================================
 .ipynb_checkpoints/
-*.ipynb
 *.ipynb-meta
-*.sav
 .colab/
 
-# =========================
+# Do NOT ignore all notebooks by default if they are part of reproducibility.
+# Put exploratory/private notebooks under notebooks/scratch/ if needed.
+notebooks/scratch/
+notebooks/tmp/
+
+# ============================================================
 # OS / Editor
-# =========================
+# ============================================================
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# =========================
-# Data (keep raw data out of git)
-# =========================
-*.csv
-*.parquet
-*.feather
+# ============================================================
+# Secrets / Local configuration
+# ============================================================
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+*.key
+*.pem
+
+# ============================================================
+# Data
+# Keep raw/large data out of Git.
+# Small sample data may be explicitly allowed under data/sample/.
+# ============================================================
 data/
 datasets/
 raw/
 processed/
+external/
+interim/
 
-# (If you want to keep a tiny sample CSV, we will add it explicitly later via !gitignore rule.)
+# Ignore generic data dumps by default.
+*.parquet
+*.feather
+*.sqlite
+*.db
 
-# =========================
-# Figures / Outputs
-# =========================
+# CSV policy:
+# - Raw/generated data CSVs are ignored.
+# - Curated manuscript result tables can be kept if stored under tables/ or supplementary/.
+*.csv
+!tables/**/*.csv
+!supplementary/**/*.csv
+!supplementary_tables/**/*.csv
+!results/final/**/*.csv
+!data/sample/**/*.csv
+
+# ============================================================
+# Figures / Generated Outputs
+# ============================================================
 figures_raw_900/
 figures_900/
+figures_raw/
+figures_clean/
 outputs/
 runs/
 logs/
+tmp/
+temp/
 *.log
 
-# =========================
+# Keep manuscript-ready figures only if stored deliberately under figures_final/.
+!figures_final/
+!figures_final/**
+
+# ============================================================
 # Models / Artifacts
-# =========================
+# ============================================================
 *.pkl
 *.joblib
 *.pt
+*.pth
 *.onnx
 *.h5
 *.ckpt
+*.model
 
 # AutoGluon
 AutogluonModels/
-autogluon_*/ 
+autogluon_*/
 **/AutogluonModels/
 
 # MLJAR
@@ -76,22 +129,57 @@ mljar_*/
 **/AutoML_*/
 
 # H2O
-*.zip
-h2o_*
-h2o_model_*
-**/h2o_*
+h2o_*/
+h2o_model_*/
+**/h2o_*/
+*.leaderboard
+*.mojo
 
-# =========================
-# Reports
-# =========================
+# ============================================================
+# Archives
+# ============================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Allow selected release/source archives if intentionally placed here.
+!release/*.zip
+
+# ============================================================
+# Reports / Manuscript source
+# ============================================================
+# Generated office/PDF files are ignored by default.
 *.pdf
 *.docx
 *.pptx
 *.xlsx
 
-# =========================
-# Requirements dumps
-# =========================
+# Allow selected manuscript/supplement files if intentionally tracked.
+!manuscript/**/*.docx
+!manuscript/**/*.pdf
+!supplementary/**/*.xlsx
+!supplementary/**/*.docx
+!supplementary/**/*.pdf
+
+# ============================================================
+# Requirements dumps / Environment locks
+# ============================================================
 pip-freeze.txt
 requirements-lock.txt
+conda-lock.yml
 
+# Keep normal dependency files tracked.
+!requirements.txt
+!environment.yml
+!pyproject.toml
+
+# ============================================================
+# Test / Coverage
+# ============================================================
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
