@@ -1,0 +1,6 @@
+item,value,note
+input_file,repeated_holdout_light_results.csv,Repeated holdout results used for paired statistical tests.
+friedman_test,statistical_tests_friedman.csv,Omnibus non-parametric test across three or more paired methods. Rows with incomplete seed-method pairs are excluded per metric.
+wilcoxon_holm_tests,statistical_tests_wilcoxon_holm.csv,Pairwise two-sided Wilcoxon signed-rank tests with Holm-Bonferroni correction applied within each analysis set and metric.
+minimum_paired_runs,3,Tests with fewer paired repeated splits are skipped to avoid unstable reporting.
+interpretation_warning,exploratory statistical validation,"Because repeated holdout splits are not fully independent, p-values should be interpreted as robustness indicators rather than definitive clinical evidence."

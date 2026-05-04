@@ -1,0 +1,7 @@
+item,description
+Purpose,This analysis evaluates whether the main binary target formulation 0 vs. 1–4 changes the conclusions compared with the original severity labels.
+Binary formulation,target=0 vs. target=1–4; this is the main disease absence/presence task.
+Ordinal three-class formulation,class 0 = no disease; class 1 = original targets 1–2; class 2 = original targets 3–4.
+Five-class formulation,"original target values 0, 1, 2, 3, and 4 are preserved."
+Recommended metrics,"For binary classification, ROC-AUC and F1 are useful. For ordinal/multiclass formulations, macro-F1 and balanced accuracy are more informative because of class imbalance."
+Manuscript use,"Report this analysis as a supplementary sensitivity analysis, not as the main benchmark. It directly addresses the reviewer concern about loss of ordinal disease-severity information."

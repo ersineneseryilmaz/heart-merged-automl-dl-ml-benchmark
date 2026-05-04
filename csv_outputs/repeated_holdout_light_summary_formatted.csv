@@ -1,0 +1,6 @@
+Framework,Regime,n,Most frequent best model,Accuracy (%),AUC (%),F1 (%),Precision (%),Recall (%),LogLoss,Runtime (s),Model size (MB)
+AutoGluon_Light,Lightweight,5,LightGBM,80.65 ± 3.11,89.16 ± 2.29,83.97 ± 1.95,78.16 ± 4.75,90.98 ± 2.44,0.42 ± 0.03,9.53 ± 7.43,13.04 ± 0.25
+ClassicML_Light,Lightweight,5,ExtraTrees,80.65 ± 3.09,88.09 ± 2.29,82.86 ± 2.68,81.47 ± 3.03,84.31 ± 2.50,0.43 ± 0.04,3.41 ± 3.52,7.69 ± 5.58
+FLAML_Light,Lightweight,5,lgbm,80.43 ± 3.99,88.17 ± 3.48,82.40 ± 3.68,82.15 ± 3.64,82.75 ± 4.88,0.44 ± 0.07,67.17 ± 15.96,0.02 ± 0.01
+H2O_Light,Lightweight,5,H2OXGBoostEstimator,76.20 ± 1.78,84.83 ± 2.89,80.53 ± 1.13,73.89 ± 3.18,88.82 ± 5.03,0.51 ± 0.09,79.27 ± 6.63,0.23 ± 0.25
+MLJAR_Light,Lightweight,5,Ensemble,79.67 ± 2.57,88.71 ± 2.16,82.69 ± 2.37,78.70 ± 5.71,88.04 ± 8.16,0.42 ± 0.04,65.72 ± 10.85,11.30 ± 5.50

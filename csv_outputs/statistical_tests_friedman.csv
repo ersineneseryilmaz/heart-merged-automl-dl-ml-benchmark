@@ -1,0 +1,17 @@
+analysis_set,metric,n_paired_splits,n_methods,methods,friedman_statistic,p_value,significant_at_0_05,note
+framework_level_selected_runs,f1_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,7.04,0.133789,False,ok
+framework_level_selected_runs,auc_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,13.28,0.009986,True,ok
+framework_level_selected_runs,accuracy_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,5.404255,0.248275,False,ok
+framework_level_selected_runs,precision_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,6.56,0.161049,False,ok
+framework_level_selected_runs,recall_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,9.072165,0.059321,False,ok
+framework_level_selected_runs,logloss,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,12.32,0.015124,True,ok
+framework_level_selected_runs,runtime_s,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,17.92,0.001279,True,ok
+framework_level_selected_runs,model_size_mb,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,15.68,0.00348,True,ok
+all_available_method_rows,f1_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,7.04,0.133789,False,ok
+all_available_method_rows,auc_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,13.28,0.009986,True,ok
+all_available_method_rows,accuracy_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,5.404255,0.248275,False,ok
+all_available_method_rows,precision_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,6.56,0.161049,False,ok
+all_available_method_rows,recall_pct,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,9.072165,0.059321,False,ok
+all_available_method_rows,logloss,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,12.32,0.015124,True,ok
+all_available_method_rows,runtime_s,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,17.92,0.001279,True,ok
+all_available_method_rows,model_size_mb,5,5,AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light,15.68,0.00348,True,ok
