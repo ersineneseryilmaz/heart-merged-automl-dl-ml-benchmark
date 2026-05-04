@@ -1,80 +1,86 @@
-# src/workflow_fig.py
-import argparse
-import os
+\
+"""Generate the revised Figure 12 workflow diagram."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+from matplotlib.patches import FancyBboxPatch
 
 from .utils import ensure_dir
 
 
-def _save_900(fig, out_path: str, dpi: int = 150):
-    fig.set_size_inches(6, 6, forward=True)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
-    plt.close(fig)
+BOXES = [
+    ("Raw merged UCI Heart Disease dataset", "(Cleveland + Hungary + Switzerland + VA Long Beach)"),
+    ("Unified preprocessing", '("?"→NaN, numeric casting, target binarization,\nmedian imputation; scaling only when required)'),
+    ("Primary external evaluation protocol", "Stratified outer Train/Test split (80/20, seed=42)\nInner Train/Val for selection / early stopping"),
+    ("Primary benchmark training", "ML: Light vs Full\nDL: Light vs Full\nAutoML: Light vs Full"),
+    ("Evaluate on held-out test set", "Accuracy, ROC-AUC, F1, Precision, Recall, LogLoss,\nConfusion Matrix"),
+    ("Resource logging", "Observed runtime (wall-clock), RAM / memory usage,\nModel size (serialized file MB)"),
+    ("Repeated lightweight holdout analysis", "5 stratified 80/20 splits\nSeeds: [42, 7, 21, 84, 123]\nReport mean ± SD"),
+    ("Additional robustness analyses", "Budget compliance\nWilcoxon-Holm + Friedman tests\nTarget sensitivity: binary / ordinal 3-class / 5-class"),
+    ("Report results", "Tables / Figures + exact configurations +\nreproducibility materials"),
+]
 
 
-def _box(ax, xy, w, h, text, fontsize=9):
-    x, y = xy
-    patch = FancyBboxPatch(
-        (x, y), w, h,
-        boxstyle="round,pad=0.02,rounding_size=0.02",
-        linewidth=1.2,
-        facecolor="white"
-    )
-    ax.add_patch(patch)
-    ax.text(x + w/2, y + h/2, text, ha="center", va="center", fontsize=fontsize)
-    return patch
+def make_workflow_figure(output_path: str | Path, dpi: int = 300) -> None:
+    """Create a vertical flowchart matching the revised manuscript workflow."""
+    output_path = Path(output_path)
+    ensure_dir(output_path.parent)
 
-
-def _arrow(ax, p1, p2):
-    ax.add_patch(FancyArrowPatch(p1, p2, arrowstyle="->", mutation_scale=12, linewidth=1.2))
-
-
-def make_fig3_workflow(out_dir="figures_900"):
-    ensure_dir(out_dir)
-
-    fig, ax = plt.subplots()
-    ax.set_axis_off()
+    fig, ax = plt.subplots(figsize=(8, 10))
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
+    ax.axis("off")
 
-    W, H = 0.82, 0.10
-    X = 0.09
+    n = len(BOXES)
+    box_h = 0.082
+    gap = 0.020
+    top = 0.965
+    x = 0.08
+    w = 0.84
 
-    b1 = _box(ax, (X, 0.86), W, H, "Raw merged CSV\n(Cleveland + Hungary + Switzerland + VA Long Beach)")
-    b2 = _box(ax, (X, 0.72), W, H, "Unified preprocessing\n(“?”→NaN, numeric casting, target binarization,\nmedian imputation for features)")
-    b3 = _box(ax, (X, 0.58), W, H, "Stratified split\nOuter: Train/Test\nInner: Train/Val (selection / early stopping)")
-    b4 = _box(ax, (X, 0.44), W, H, "Train (two comparable regimes)\nML: Light vs Full\nDL: Light vs Full\nAutoML: Light vs Full")
-    b5 = _box(ax, (X, 0.30), W, H, "Evaluate on held-out test set\nAccuracy, AUC, F1, Precision, Recall, LogLoss,\nConfusion Matrix")
-    b6 = _box(ax, (X, 0.16), W, H, "Resource logging\nRuntime (wall-clock), RAM (process RSS & system delta),\nModel size (serialized file MB)")
-    b7 = _box(ax, (X, 0.02), W, H, "Report results\nTables/Figures + exact configs for reproducibility")
+    for i, (title, subtitle) in enumerate(BOXES):
+        y_top = top - i * (box_h + gap)
+        y = y_top - box_h
 
-    def mid_bottom(box):
-        x, y = box.get_x(), box.get_y()
-        w, h = box.get_width(), box.get_height()
-        return (x + w/2, y)
+        rect = FancyBboxPatch(
+            (x, y),
+            w,
+            box_h,
+            boxstyle="round,pad=0.012,rounding_size=0.015",
+            linewidth=1.6,
+            edgecolor="black",
+            facecolor="white",
+        )
+        ax.add_patch(rect)
 
-    def mid_top(box):
-        x, y = box.get_x(), box.get_y()
-        w, h = box.get_width(), box.get_height()
-        return (x + w/2, y + h)
+        ax.text(
+            0.5,
+            y + box_h * 0.64,
+            title,
+            ha="center",
+            va="center",
+            fontsize=11,
+            fontweight="bold",
+        )
+        ax.text(
+            0.5,
+            y + box_h * 0.34,
+            subtitle,
+            ha="center",
+            va="center",
+            fontsize=8.8,
+        )
 
-    for a, b in [(b1, b2), (b2, b3), (b3, b4), (b4, b5), (b5, b6), (b6, b7)]:
-        _arrow(ax, mid_bottom(a), mid_top(b))
+        if i < n - 1:
+            ax.annotate(
+                "",
+                xy=(0.5, y - gap * 0.55),
+                xytext=(0.5, y - gap * 0.05),
+                arrowprops=dict(arrowstyle="-|>", lw=1.6, color="black"),
+            )
 
-    ax.set_title("Figure 3. End-to-end experimental workflow", fontsize=11)
-    out_path = os.path.join(out_dir, "Fig3_workflow_900.png")
-    _save_900(fig, out_path)
-    print("[OK] Saved:", out_path)
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="figures_900")
-    args = ap.parse_args()
-    make_fig3_workflow(args.out)
-
-
-if __name__ == "__main__":
-    main()
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
