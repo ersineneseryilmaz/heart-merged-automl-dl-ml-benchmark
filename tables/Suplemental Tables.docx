@@ -1,1 +1,264 @@
+Table S1: Experimental environment and execution constraints
+Legend: Summary of the experimental environment and execution constraints used for all comparative runs. The table reports the Google Colab CPU-only platform configuration (OS, compute, memory, disk), software stack and library versions, and the fixed reproducibility settings (random seed, stratified 80/20 split, validation-based model selection). It also lists the matched wall-clock time budgets defining the Full (180 s) and Lightweight (60 s) regimes for AutoML, classical ML, and deep learning experiments.
+Table S1: Experimental environment and execution constraints
+Item	Specification
+Execution platform	Google Colab (cloud notebook environment)
+Operating system	Linux (kernel build: #1 SMP Thu Oct 2 10:42:05 UTC 2025)
+CPU	2 vCPUs
+GPU	Not available (CPU-only; CUDA not available)
+Total RAM	12.67 GB
+Available RAM at start (example run)	9.45 GB / 12.67 GB (74.6%)
+Disk space available (example run)	85.00 GB / 107.72 GB (78.9%)
+Python	3.12.12
+AutoGluon	1.5.0
+PyTorch	2.9.0+cpu
+H2O AutoML	3.46.0.9
+Java (for H2O)	OpenJDK 17.0.17
+Core scientific stack	numpy==2.0.2; pandas==2.2.2
+Classic ML stack	scikit-learn==1.6.1
+Gradient boosting libraries	lightgbm==4.6.0; xgboost==3.1.2
+Additional packages (present in environment)	scikit-image==0.25.2; geopandas==1.1.1; sklearn-pandas==2.2.0; pandas-datareader==0.10.0; pandas-gbq==0.30.0; pandas-stubs==2.2.2.240909
+Random seed	random_state = 42 (used for reproducibility in comparative runs)
+Time budgets (AutoML)	Full: 180 s; Light: 60 s
+Time budgets (Classic ML)	Full: 180 s (RandomizedSearchCV / extended training); Light: 60 s (fixed fast settings)
+Time budgets (Deep Learning)	Full: 180 s; Light: 60 s (early stopping + epoch limits within budget)
+Train/Test split	80/20 stratified split (seed=42)
+Model selection	Validation-based selection inside training split (holdout or CV depending on framework)
+
+ 
+Table S2: Exact configurations of all models and AutoML frameworks
+Legend: Exact, reproducible configurations used for every approach under the Full (180 s) and Lightweight (60 s) regimes. The table documents, for each classical ML, DL, and AutoML run, the preset/mode name, enabled learners or architectures, whether ensembling/stacking was applied, any feature-engineering components, the hyperparameter-optimization strategy and search-space constraints, and the validation/splitting policy. A fixed random seed is reported where supported to ensure repeatable execution and direct comparability across methods.
+
+Table S2: Exact configurations of all models and AutoML frameworks 
+Approach	Framework / Model Family	Mode	Time Budget (s)	Preset / Mode Name	Enabled learners / models	Ensembling / Stacking	Feature engineering components	HPO / Search-space constraints	Validation / Splitting	Reproducibility (seed)
+AutoML	AutoGluon Tabular	Full	180	best_quality	GBM (LightGBM + ExtraTrees variant), XGB, CAT, RF, XT, FastAI NN (Torch NN may be skipped if time is exceeded)	WeightedEnsemble_L2 with bagging	AutoGluon pipeline (dtype inference, NaN handling, drop unique/duplicate, etc.)	Default hyperparameter preset; bagging with num_bag_folds=5; decision threshold calibration for F1	Internal validation + bagging; fixed external test split	random_state=42 for data split (plus framework-internal seeding when available)
+AutoML	AutoGluon Tabular	Light	60	medium_quality_faster_train → medium_quality	GBM, RF, XT, LR	WeightedEnsemble_L2 (light)	Same AutoGluon pipeline	Smaller model set; short training; decision threshold calibration for F1	Holdout validation (holdout_frac=0.2) + fixed external test split	random_state=42 for data split
+AutoML	MLJAR (Supervised/AutoML)	Full	180 (target)	“Compete/Normal” (broad search)	LightGBM, Xgboost, CatBoost, RandomForest, ExtraTrees, NeuralNetwork (+ DecisionTree in validation adjustment)	Ensemble (stacking may be disabled depending on split validation)	Step-based pipeline: default_algorithms, not_so_random, (time-permitting: golden/kmeans/features_selection/hill_climbing/boost_on_errors)	Internal step-wise search; some steps may be skipped due to time limit	Internal split validation + fixed external test split	random_state=42 for split + MLJAR seed (as set in code)
+AutoML	MLJAR (Supervised/AutoML)	Light	60 (target)	“Light” (restricted search)	LightGBM, Xgboost, CatBoost, RandomForest	Ensemble (light)	default_algorithms, not_so_random, ensemble	Restricted number of models/steps; short training	Internal validation + fixed external test split	random_state=42 for split + MLJAR seed
+AutoML	H2O AutoML	Full	180	H2O AutoML (expanded leaderboard)	GBM, XGBoost, GLM, DRF, XRT, DeepLearning, StackedEnsemble	StackedEnsemble (when time permits)	H2O internal processing	max_runtime_secs=180	H2O internal CV/validation + fixed external test split	seed=42 for H2O AutoML + random_state=42 split
+AutoML	H2O AutoML	Light	60	H2O AutoML (restricted)	Same families, fewer trials	Stacking more limited	H2O internal processing	max_runtime_secs=60	H2O internal CV/validation + fixed external test split	seed=42 + fixed split
+AutoML	FLAML	Full	180	Time-budgeted	Best estimator selected by FLAML (observed: XGBoost-based)	None (single best estimator)	Minimal (depends on pipeline)	Time-budgeted tuning within 180s	Internal validation + fixed external test split	random_state=42 split + FLAML seed=42
+AutoML	FLAML	Light	60	Time-budgeted	Best estimator selected by FLAML (observed: LightGBM-based)	None	Minimal	Time-budgeted tuning within 60s	Internal validation + fixed external test split	random_state=42 split + FLAML seed=42
+Classical ML	Sklearn + (XGBoost/LightGBM)	Full	180	“timed_search”	LogReg, RF, ExtraTrees, MLP (sklearn), LightGBM, XGBoost	None (single best model)	StandardScaler (fit on training only)	RandomizedSearchCV under time budget; typical search dims: n_estimators, max_depth, learning_rate, subsample, colsample_bytree, reg_lambda, min_child_weight, etc.	Stratified train/test (test_size=0.2) + internal holdout val (~0.2 of train)	random_state=42 (split + search)
+Classical ML	Sklearn + (XGBoost/LightGBM)	Light	60	“baseline fast”	Same model pool	None	StandardScaler (fit on training only)	No tuning; fixed fast hyperparameters	Same split/validation logic	random_state=42
+Deep Learning (tabular)	PyTorch: 1D-CNN, RNN, GRU, LSTM, AE+Head	Full	180	“Full schedule”	Each architecture trained separately with identical input features	None	StandardScaler + tabular→tensor formatting	More epochs; learning-rate schedule enabled; less aggressive early stopping	Internal holdout validation (0.2 of train) + fixed external test split	seed=42 (NumPy + PyTorch)
+Deep Learning (tabular)	PyTorch: 1D-CNN, RNN, GRU, LSTM, AE+Head	Light	60	“Light schedule”	Same architectures	None	Same	Fewer epochs; more aggressive early stopping; scheduler disabled	Same split/validation logic	seed=42
+
+ 
+Table S3: Metric definitions and computation details
+Legend: Definitions of the predictive-performance and resource-efficiency metrics reported throughout the study, together with their exact computation procedures. The table specifies how classification metrics (Accuracy, ROC-AUC, F1-score, Precision, Recall, LogLoss, and confusion-matrix entries) are derived from model outputs (including the default probability threshold when applicable), and documents the measurement methodology for deployment-relevant costs—observed wall-clock runtime, process memory change (RSS), system-level memory utilization, and serialized model artifact size—ensuring consistent and reproducible reporting across ML, DL, and AutoML frameworks.
+Table S3: Metric definitions and computation details
+Category	Metric / Quantity	Definition	Computation / Implementation details
+Predictive performance	Accuracy	Proportion of correct predictions.	Computed on the held-out test set using predicted labels.
+Predictive performance	AUC (ROC-AUC)	Area under the ROC curve measuring ranking quality across thresholds.	Computed on the test set using predicted probabilities (positive class).
+Predictive performance	F1-score	Harmonic mean of Precision and Recall.	Computed on the test set; binary F1 for the positive class (target=1).
+Predictive performance	Precision	Fraction of predicted positives that are true positives.	Precision = TP / (TP + FP), computed on the test set.
+Predictive performance	Recall (Sensitivity)	Fraction of true positives detected by the model.	Recall = TP / (TP + FN), computed on the test set.
+Predictive performance	LogLoss	Penalizes miscalibrated probabilities via negative log-likelihood.	Computed on the test set from predicted probabilities (binary cross-entropy).
+Predictive performance	Confusion matrix	Counts of TN, FP, FN, TP at a fixed threshold.	Threshold fixed at 0.5 unless the framework applies internal calibration; the resulting matrix is reported.
+Runtime	Wall-clock runtime (s)	End-to-end elapsed time for training + selection under a budget.	Measured with time.time() as end_time - start_time around the entire fit/tuning routine for each run.
+Runtime	Time budget policy	Defines “Full” vs “Lightweight” regimes.	Full = 180 s, Light = 60 s applied consistently across methods; some frameworks may show minor overhead beyond nominal limits.
+Memory (process)	Python process RSS delta (MB)	Change in resident set size (RSS) of the Python process during training.	Measured via psutil.Process(os.getpid()).memory_info().rss; reported as end_rss - start_rss, converted to MB.
+Memory (system)	System RAM usage delta (GB)	Change in overall system-used RAM during training.	Measured via OS-level memory snapshot (e.g., psutil.virtual_memory()); reported as end_used - start_used in GB.
+Storage	Model file size (MB)	Disk footprint of the exported model artifact.	Measured via os.path.getsize(model_path) and converted to MB. For frameworks saving directories, the total directory size is used.
+Reproducibility	Random seed	Controls split and training stochasticity where applicable.	Fixed seed (e.g., 42) used for data split and passed to methods that expose a seed/random_state parameter.
+Evaluation protocol	Train/test split	Ensures unbiased performance reporting.	Stratified hold-out split with test_size=0.2; test set kept constant across all methods.
+Evaluation protocol	Probability threshold	Converts probabilities to labels for confusion-matrix-based metrics.	Default threshold = 0.5 unless framework applies explicit decision-threshold calibration; reported metrics follow the final model output policy.
+
+ 
+Table S4: Classical machine learning results on the test set under lightweight and full budgets.
+Legend: Test-set performance of the best classical ML model selected under two compute budgets: a lightweight (60 s) setting with fixed fast hyperparameters and a full (180 s) setting including time-budgeted hyperparameter search.
+
+Table S4: Classical ML results-Full vs Light
+Setting	Best model	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Confusion matrix (TN, FP, 
+FN, TP)	Runtime (s)	Proc. RAM Δ (MB)	Model size (MB)	Budget (s)
+ML Light	XGBoost	80.43	87.86	83.02	80.00	86.27	0.53	60, 22, 
+14, 88	8.60	14.63	0.1840	60
+ML Full	XGBoost	84.78	91.79	86.67	84.26	89.22	0.37	65, 17, 
+11, 91	180.50	30.07	0.1325	180
+
+ 
+Table S5: Deep learning results on the test set for lightweight and full budgets
+Legend: Test-set performance of deep learning architectures (PyTorch) evaluated under lightweight (60 s) and full (180 s) execution budgets.
+Table S5: Deep learning results on the test set for lightweight and full budgets
+Model	Setting	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Confusion matrix (TN, FP, FN, TP)	Runtime (s)	Proc. RAM Δ (MB)	Model size (MB)	Budget (s)
+1D-CNN	DL Light	71.20	76.53	74.40	73.33	75.49	0.57	54, 28, 
+25, 77	4.01	73.52	0.0139	60
+1D-CNN	DL Full	72.83	77.73	74.49	77.66	71.57	0.56	61, 21, 
+29, 73	5.58	1.95	0.0203	180
+RNN	DL Light	78.26	86.32	80.20	81.00	79.41	0.47	63, 19, 
+21, 81	1.50	0.89	0.0092	60
+RNN	DL Full	82.07	89.61	84.65	80.53	89.22	0.42	60, 22, 
+11, 91	3.85	0.09	0.0121	180
+GRU	DL Light	75.00	79.47	76.77	79.17	74.51	0.54	62, 20, 
+26, 76	1.32	0.95	0.0142	60
+GRU	DL Full	80.43	87.11	82.86	80.56	85.29	0.44	61, 21, 
+15, 87	8.72	0.87	0.0206	180
+LSTM	DL Light	72.83	79.26	74.23	78.26	70.59	0.55	62, 20, 
+30, 72	0.96	8.52	0.0168	60
+LSTM	DL Full	73.91	79.93	76.00	77.55	74.51	0.54	60, 22, 
+26, 76	1.88	2.40	0.0249	180
+AE+Head	DL Light	77.17	84.88	80.37	76.79	84.31	0.54	56, 26, 
+16, 86	0.49	0.12	0.0122	60
+AE+Head	DL Full	82.61	89.37	84.62	83.02	86.27	0.41	64, 18, 
+14, 88	1.31	0.00	0.0122	180
+
+ 
+Table S6: AutoML (Full) results on the test set under the full budget
+Legend: Test-set performance of AutoML frameworks configured in the full setting (180 s budget), including their selected best model types and resource-related outcomes.
+
+Table S6: AutoML results
+Framework	Full configuration (as used)	Best model (reported)	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Confusion matrix (TN, FP, FN, TP)	Runtime (s)	Proc. RAM Δ (MB)	Model size (MB)	Budget (s)
+MLJAR	“Normal/Compete”, stacking+ensemble, time-limited	Ensemble	81.52	92.64	85.47	75.76	98.04	0.35	50, 32, 
+2, 100	266.96	1007.46	43.76	180
+AutoGluon	preset=best_quality, time_limit=180s	WeightedEnsemble_L2	84.24	90.94	86.51	82.30	91.18	0.38	62, 20, 
+9, 93	195.30	68.47	68.18	180
+H2O AutoML	Full run (H2O AutoML)	H2OXGBoostEstimator	82.07	90.32	84.79	80.00	90.20	0.46	59, 23, 
+10, 92	198.33	0.66	0.10	180
+FLAML	Full run (time budgeted)	XGBoostLimitDepthEstimator	83.70	92.48	85.85	82.73	89.22	0.38	63, 19, 
+11, 91	180.16	9.39	0.08	180
+
+ 
+Table S7: AutoML (Lightweight) results on the test set under the lightweight budget
+Legend: Test-set performance of AutoML frameworks configured in the lightweight setting (60 s budget), highlighting the selected best model types and resource measurements.
+
+Table S7: AutoML (Lightweight) results
+Framework	Lightweight configuration (as used)	Best model	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Confusion matrix (TN, FP, FN, TP)	Runtime (s)	Proc. RAM Δ (MB)	Model size (MB)	Budget (s)
+MLJAR	Light run (reduced algos/steps), time-limited	3_Default_CatBoost (ModelFramework)	83.15	92.04	86.34	78.40	96.08	0.36	55, 27, 
+4, 98	70.91	189.38	1.4848	60
+AutoGluon	preset=medium_quality_faster_train (→ medium_quality), time_limit=60s	WeightedEnsemble_L2	84.78	92.80	86.67	84.26	89.22	0.37	65, 17, 
+11, 91	9.87	9.74	13.07	60
+H2O AutoML	Light run (H2O AutoML)	H2OXGBoostEstimator	80.98	89.07	84.58	76.80	94.12	0.41	53, 29, 
+6, 96	76.53	0.97	0.12	60
+FLAML	Light run (time budgeted)	LGBMEstimator	84.24	91.87	86.38	82.88	90.20	0.36	63, 19, 
+10, 92	61.10	0.03	0.07	60
+
+ 
+Table S8: Summary of the best full and best lightweight configurations on the test set.
+Legend: Compact summary of the single best-performing configuration under the full (180 s) and lightweight (60 s) budgets.
+
+Table S8: Summary of “Best Full” and “Best Lightweight” configurations
+Category	Method / Framework	Best model	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Runtime (s)	Model size (MB)
+Best Full	Classic ML (XGBoost)	XGBoost	84.78	91.79	86.67	84.26	89.22	0.37	180.50	0.1325
+Best Light	AutoGluon (medium_quality_faster_train)	Weighted
+Ensemble_L2	84.78	92.80	86.67	84.26	89.22	0.37	9.87	13.07
+
+ 
+Table S9: Classical ML Light
+Model		Phase	Val F1	Fit time (s)
+XGBoost		baseline	0.823529	0.269163
+MLP_sklearn		baseline	0.814371	0.857044
+LightGBM		baseline	0.814371	0.307287
+LogReg		baseline	0.812121	5.664263
+RF		baseline	0.804734	0.552234
+ExtraTrees		baseline	0.800000	0.433935
+
+Table S10: Classical ML Full
+Model	Phase	Val F1	Fit time (s)	Trials
+MLP_sklearn	baseline	0.826347	0.771859	—
+XGBoost	baseline	0.823529	0.054166	—
+LightGBM	baseline	0.814371	0.046419	—
+LogReg	baseline	0.812121	2.775595	—
+RF	baseline	0.804734	0.540757	—
+ExtraTrees	baseline	0.800000	0.321580	—
+XGBoost	timed_search	0.845238	0.043403	270
+LightGBM	timed_search	0.838323	0.039103	168
+MLP_sklearn	timed_search	0.833333	0.838996	57
+
+ 
+Tablo S11: Repeated stratified holdout summary for lightweight configurations
+Legend: The table reports mean ± standard deviation across five repeated stratified 80/20 holdout splits. The same pre-specified seeds [42, 7, 21, 84, 123] were used for all lightweight configurations to enable paired comparisons across identical data partitions. Runtime refers to observed end-to-end wall-clock runtime, and model size refers to the serialized model artifact size.
+Framework	Regime	n	Most frequent best model	Accuracy (%)	AUC (%)	F1 (%)	Precision (%)	Recall (%)	LogLoss	Runtime (s)	Model size (MB)
+AutoGluon_Light	Lightweight	5	LightGBM	80.65 ± 3.11	89.16 ± 2.29	83.97 ± 1.95	78.16 ± 4.75	90.98 ± 2.44	0.42 ± 0.03	9.53 ± 7.43	13.04 ± 0.25
+ClassicML_Light	Lightweight	5	ExtraTrees	80.65 ± 3.09	88.09 ± 2.29	82.86 ± 2.68	81.47 ± 3.03	84.31 ± 2.50	0.43 ± 0.04	3.41 ± 3.52	7.69 ± 5.58
+FLAML_Light	Lightweight	5	lgbm	80.43 ± 3.99	88.17 ± 3.48	82.40 ± 3.68	82.15 ± 3.64	82.75 ± 4.88	0.44 ± 0.07	67.17 ± 15.96	0.02 ± 0.01
+H2O_Light	Lightweight	5	H2OXGBoostEstimator	76.20 ± 1.78	84.83 ± 2.89	80.53 ± 1.13	73.89 ± 3.18	88.82 ± 5.03	0.51 ± 0.09	79.27 ± 6.63	0.23 ± 0.25
+MLJAR_Light	Lightweight	5	Ensemble	79.67 ± 2.57	88.71 ± 2.16	82.69 ± 2.37	78.70 ± 5.71	88.04 ± 8.16	0.42 ± 0.04	65.72 ± 10.85	11.30 ± 5.50
+
+ 
+Table S12. Budget compliance summary for repeated lightweight runs.
+Legend: The table reports budget compliance across five repeated stratified 80/20 holdout splits for the lightweight regime. The nominal lightweight budget was 60 seconds. A run was considered compliant if the observed end-to-end wall-clock runtime was less than or equal to 60 seconds. Negative overhead values indicate that the framework completed before the nominal budget, whereas positive values indicate runtime exceeding the nominal budget.
+Framework	Regime	n runs	Compliant runs	Runtime mean (s)	Runtime SD (s)	Mean overhead (s)	Max overhead (s)	Runtime-to-budget ratio	Compliance rate (%)
+AutoGluon_Light	Lightweight	5	5	9.53	7.43	-50.47	-37.20	0.16	100.00
+ClassicML_Light	Lightweight	5	5	3.41	3.52	-56.59	-50.31	0.06	100.00
+FLAML_Light	Lightweight	5	0	67.17	15.96	7.17	35.72	1.12	0.00
+H2O_Light	Lightweight	5	0	79.27	6.63	19.27	30.96	1.32	0.00
+MLJAR_Light	Lightweight	5	1	65.72	10.85	5.72	24.91	1.10	20.00
+
+Table S13. Pairwise Wilcoxon signed-rank tests with Holm correction.
+Legend: The table reports pairwise Wilcoxon signed-rank tests comparing lightweight framework-level configurations across five repeated stratified 80/20 holdout splits. The same paired splits were used for all methods. Holm correction was applied within each metric family to control for multiple comparisons. Mean values are reported as percentages. A Holm-adjusted p-value below 0.05 was considered statistically significant.
+Metric	n paired splits	Method A	Method B	Mean A	Mean B	Mean diff. A−B	Descriptively better method	Wilcoxon statistic	Raw p-value	Holm p-value	Significant after Holm?
+F1 (%)	5	AutoGluon_Light	ClassicML_Light	83.97	82.86	1.11	AutoGluon_Light	4.00	0.4375	1.0000	No
+F1 (%)	5	AutoGluon_Light	FLAML_Light	83.97	82.40	1.57	AutoGluon_Light	5.00	0.6250	1.0000	No
+F1 (%)	5	AutoGluon_Light	H2O_Light	83.97	80.53	3.44	AutoGluon_Light	0.00	0.0625	0.6250	No
+F1 (%)	5	AutoGluon_Light	MLJAR_Light	83.97	82.69	1.27	AutoGluon_Light	0.00	0.0625	0.6250	No
+F1 (%)	5	ClassicML_Light	FLAML_Light	82.86	82.40	0.46	ClassicML_Light	7.00	1.0000	1.0000	No
+F1 (%)	5	ClassicML_Light	H2O_Light	82.86	80.53	2.33	ClassicML_Light	3.00	0.3125	1.0000	No
+F1 (%)	5	ClassicML_Light	MLJAR_Light	82.86	82.69	0.17	ClassicML_Light	7.00	1.0000	1.0000	No
+F1 (%)	5	FLAML_Light	H2O_Light	82.40	80.53	1.87	FLAML_Light	4.00	0.4375	1.0000	No
+F1 (%)	5	FLAML_Light	MLJAR_Light	82.40	82.69	-0.30	MLJAR_Light	7.00	1.0000	1.0000	No
+F1 (%)	5	H2O_Light	MLJAR_Light	80.53	82.69	-2.16	MLJAR_Light	1.00	0.1250	1.0000	No
+ROC-AUC (%)	5	AutoGluon_Light	ClassicML_Light	89.16	88.09	1.07	AutoGluon_Light	0.00	0.0625	0.6250	No
+ROC-AUC (%)	5	AutoGluon_Light	FLAML_Light	89.16	88.17	0.99	AutoGluon_Light	3.00	0.3125	1.0000	No
+ROC-AUC (%)	5	AutoGluon_Light	H2O_Light	89.16	84.83	4.33	AutoGluon_Light	0.00	0.0625	0.6250	No
+ROC-AUC (%)	5	AutoGluon_Light	MLJAR_Light	89.16	88.71	0.45	AutoGluon_Light	3.00	0.3125	1.0000	No
+ROC-AUC (%)	5	ClassicML_Light	FLAML_Light	88.09	88.17	-0.08	FLAML_Light	7.00	1.0000	1.0000	No
+ROC-AUC (%)	5	ClassicML_Light	H2O_Light	88.09	84.83	3.26	ClassicML_Light	0.00	0.0625	0.6250	No
+ROC-AUC (%)	5	ClassicML_Light	MLJAR_Light	88.09	88.71	-0.62	MLJAR_Light	2.00	0.1875	0.9375	No
+ROC-AUC (%)	5	FLAML_Light	H2O_Light	88.17	84.83	3.34	FLAML_Light	0.00	0.0625	0.6250	No
+ROC-AUC (%)	5	FLAML_Light	MLJAR_Light	88.17	88.71	-0.54	MLJAR_Light	5.00	0.6250	1.0000	No
+ROC-AUC (%)	5	H2O_Light	MLJAR_Light	84.83	88.71	-3.88	MLJAR_Light	0.00	0.0625	0.6250	No
+
+Table S14. Friedman omnibus tests across repeated lightweight runs.
+Legend: The table reports Friedman omnibus tests across five lightweight framework-level configurations evaluated on five repeated stratified 80/20 holdout splits. The compared methods were AutoGluon_Light, ClassicML_Light, FLAML_Light, H2O_Light, and MLJAR_Light. The Friedman test evaluates whether there is an overall difference among methods for each metric. A p-value below 0.05 was considered statistically significant. These results should be interpreted as exploratory robustness indicators; framework-level superiority should be assessed together with the pairwise Wilcoxon-Holm results in Table S13.
+Analysis set	Metric	n paired splits	n methods	Compared methods	Friedman statistic	p-value	Significant at 0.05?	Interpretation
+Framework-level selected runs	F1 (%)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	7.04	0.133789	No	No statistically significant overall difference
+Framework-level selected runs	ROC-AUC (%)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	13.28	0.009986	Yes	Overall difference detected
+Framework-level selected runs	Accuracy (%)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	5.40	0.248275	No	No statistically significant overall difference
+Framework-level selected runs	Precision (%)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	6.56	0.161049	No	No statistically significant overall difference
+Framework-level selected runs	Recall (%)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	9.07	0.059321	No	Borderline but not significant
+Framework-level selected runs	LogLoss	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	12.32	0.015124	Yes	Overall difference detected
+Framework-level selected runs	Runtime (s)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	17.92	0.001279	Yes	Overall difference detected
+Framework-level selected runs	Model size (MB)	5	5	AutoGluon_Light; ClassicML_Light; FLAML_Light; H2O_Light; MLJAR_Light	15.68	0.003480	Yes	Overall difference detected
+
+Table S15: Class distribution under alternative target formulations
+Legend: The table reports the class distribution for the three target formulations used in the target sensitivity analysis: the primary binary disease absence/presence task, the ordinal three-class severity grouping, and the original five-class disease-severity target. Percentages were calculated within each target formulation.
+Target formulation	Class label	Class meaning	Count	Percentage (%)
+Binary: 0 vs. 1–4	0	No disease	411	44.67
+Binary: 0 vs. 1–4	1	Disease present	509	55.33
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	0	No disease	411	44.67
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	1	Mild/moderate disease, original target 1–2	374	40.65
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	2	More severe disease, original target 3–4	135	14.67
+Original 5-class: 0–4	0	No disease	411	44.67
+Original 5-class: 0–4	1	Original severity class 1	265	28.80
+Original 5-class: 0–4	2	Original severity class 2	109	11.85
+Original 5-class: 0–4	3	Original severity class 3	107	11.63
+Original 5-class: 0–4	4	Original severity class 4	28	3.04
+
+Table S16: Target sensitivity analysis across binary, ordinal three-class, and original five-class formulations
+Legend: The table reports mean ± standard deviation across five repeated stratified 80/20 holdout splits. Three target formulations were evaluated: the primary binary disease absence/presence task, 0 vs. 1–4; an ordinal three-class formulation, 0 vs. 1–2 vs. 3–4; and the original five-class severity formulation, 0, 1, 2, 3, 4. Lightweight classical ML baselines were used for this sensitivity analysis. Macro-F1 and balanced accuracy are emphasized for ordinal and multiclass formulations because of class imbalance.
+Target formulation	Model	n runs	Accuracy (%)	Balanced Accuracy (%)	Macro-F1 (%)	Weighted-F1 (%)	ROC-AUC (%)	LogLoss	Runtime (s)
+Binary: 0 vs. 1–4	ExtraTrees_balanced	5	80.11 ± 3.45	79.95 ± 3.55	79.89 ± 3.52	80.11 ± 3.47	89.27 ± 2.63	0.41 ± 0.04	0.80 ± 0.05
+Binary: 0 vs. 1–4	LightGBM_fixed	5	78.91 ± 4.50	78.68 ± 4.25	78.66 ± 4.43	78.90 ± 4.46	86.06 ± 1.84	0.63 ± 0.08	0.29 ± 0.18
+Binary: 0 vs. 1–4	LogisticRegression_balanced	5	81.41 ± 2.08	81.32 ± 2.05	81.24 ± 2.09	81.43 ± 2.07	87.71 ± 1.93	0.44 ± 0.03	0.02 ± 0.00
+Binary: 0 vs. 1–4	RandomForest_balanced	5	81.20 ± 1.91	80.91 ± 1.98	80.94 ± 1.96	81.17 ± 1.93	88.84 ± 2.55	0.42 ± 0.04	1.02 ± 0.13
+Binary: 0 vs. 1–4	XGBoost_fixed	5	81.85 ± 3.70	81.50 ± 3.57	81.57 ± 3.69	81.81 ± 3.67	88.33 ± 2.30	0.43 ± 0.05	0.11 ± 0.03
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	ExtraTrees_balanced	5	64.35 ± 3.68	58.52 ± 5.52	58.08 ± 5.07	64.34 ± 3.63	81.71 ± 2.83	0.74 ± 0.04	0.80 ± 0.06
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	LightGBM_fixed	5	65.22 ± 1.44	59.15 ± 1.43	59.33 ± 1.45	65.07 ± 1.53	79.80 ± 2.41	1.13 ± 0.18	0.90 ± 0.56
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	LogisticRegression_balanced	5	60.87 ± 2.52	59.39 ± 2.72	56.79 ± 1.90	61.26 ± 2.36	79.72 ± 2.60	0.81 ± 0.05	0.02 ± 0.01
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	RandomForest_balanced	5	65.76 ± 1.54	58.29 ± 1.25	59.00 ± 1.30	65.21 ± 1.38	81.38 ± 2.09	0.73 ± 0.04	1.00 ± 0.02
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	XGBoost_fixed	5	66.41 ± 2.67	57.71 ± 1.70	58.66 ± 1.77	65.31 ± 2.34	81.24 ± 2.66	0.75 ± 0.07	0.25 ± 0.06
+Original 5-class: 0–4	ExtraTrees_balanced	5	54.89 ± 1.92	37.05 ± 2.82	37.23 ± 3.47	54.81 ± 2.12	79.42 ± 1.53	1.05 ± 0.03	0.85 ± 0.11
+Original 5-class: 0–4	LightGBM_fixed	5	55.43 ± 3.71	37.08 ± 4.41	36.96 ± 4.58	54.88 ± 3.76	77.60 ± 1.64	1.82 ± 0.19	1.60 ± 0.72
+Original 5-class: 0–4	LogisticRegression_balanced	5	51.41 ± 4.13	42.49 ± 5.72	38.15 ± 4.28	52.71 ± 4.04	76.55 ± 2.49	1.20 ± 0.05	0.02 ± 0.00
+Original 5-class: 0–4	RandomForest_balanced	5	57.72 ± 2.91	39.22 ± 2.01	39.63 ± 2.19	56.96 ± 3.07	80.53 ± 1.47	1.02 ± 0.03	1.00 ± 0.02
+Original 5-class: 0–4	XGBoost_fixed	5	57.61 ± 3.42	36.32 ± 3.87	36.28 ± 4.38	55.60 ± 3.71	79.31 ± 1.26	1.07 ± 0.05	0.41 ± 0.10
+
+Table S17: Best-performing model within each target formulation
+Legend: The table summarizes the best-performing model within each target formulation based primarily on Macro-F1, which is especially informative for imbalanced ordinal and multiclass settings. Results are reported as mean ± standard deviation across five repeated stratified 80/20 holdout splits. The three target formulations were: binary disease absence/presence classification, ordinal three-class severity grouping, and the original five-class severity formulation.
+Target formulation	Best-performing model	n runs	Accuracy (%)	Balanced Accuracy (%)	Macro-F1 (%)	Weighted-F1 (%)	ROC-AUC (%)	LogLoss	Runtime (s)
+Binary: 0 vs. 1–4	XGBoost_fixed	5	81.85 ± 3.70	81.50 ± 3.57	81.57 ± 3.69	81.81 ± 3.67	88.33 ± 2.30	0.43 ± 0.05	0.11 ± 0.03
+Ordinal 3-class: 0 vs. 1–2 vs. 3–4	LightGBM_fixed	5	65.22 ± 1.44	59.15 ± 1.43	59.33 ± 1.45	65.07 ± 1.53	79.80 ± 2.41	1.13 ± 0.18	0.90 ± 0.56
+Original 5-class: 0–4	RandomForest_balanced	5	57.72 ± 2.91	39.22 ± 2.01	39.63 ± 2.19	56.96 ± 3.07	80.53 ± 1.47	1.02 ± 0.03	1.00 ± 0.02
+
 
